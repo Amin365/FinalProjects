@@ -157,7 +157,7 @@ const data = {
     },
     {
       title: "Resources",
-      url: "/dashboard/challenges",
+      url: "/dashboard/studentsresources",
       icon: Trophy,
    
     },

@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { name: 'Home',        href: '/' },
   { name: 'Dashboard',  href: '/dashboard' },
   { name: 'Programs',   href: '/programmecards' },
-  { name: 'Blogs',      href: '/blogs' },
+  { name: 'Volunteers',      href: '/volunteer' },
   { name: 'Leaderboard',href: '/leaderboard' },
 ]
 
@@ -33,7 +33,7 @@ const HeroHeader = () => {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50">
-      {/* ── top announcement strip ──── */}
+      {/*  top announcement strip  */}
       <div
         className={cn(
           'w-full overflow-hidden transition-all duration-500',
@@ -48,7 +48,7 @@ const HeroHeader = () => {
         </div>
       </div>
 
-      {/* ── main nav bar ─ */}
+      {/*  main nav bar ─ */}
       <div
         className={cn(
           'transition-all duration-300',
@@ -67,7 +67,7 @@ const HeroHeader = () => {
         >
           <div className="max-w-6xl mx-auto flex items-center justify-between h-15 py-3">
 
-            {/* ── Logo ─── */}
+            {/*  Logo ─ */}
             <Link to="/" className="flex items-center gap-2.5 group shrink-0">
               <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center shadow-md shadow-orange-200 dark:shadow-orange-900/30 group-hover:scale-105 transition-transform">
                 <Zap size={16} className="text-white fill-white" />
@@ -77,7 +77,7 @@ const HeroHeader = () => {
               </span>
             </Link>
 
-            {/* ── Desktop links  */}
+            {/*  Desktop links  */}
             <ul className="hidden lg:flex items-center gap-1">
               {NAV_LINKS.map((link) => {
                 const active = isActive(link.href)
@@ -102,7 +102,7 @@ const HeroHeader = () => {
               })}
             </ul>
 
-            {/* ── Desktop right actions  */}
+            {/*  Desktop right actions  */}
             <div className="hidden lg:flex items-center gap-3">
               <ModleTogles />
 
@@ -114,18 +114,18 @@ const HeroHeader = () => {
                   >
                     Log in
                   </Link>
-                  <Link
+                  {/* <Link
                     to="/register"
                     className="text-[13px] font-bold text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-xl shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Get started
-                  </Link>
+                  </Link> */}
                 </>
               ) : null
               }
             </div>
 
-            {/* ── Mobile right  */}
+            {/*  Mobile right  */}
             <div className="flex lg:hidden items-center gap-2">
               <ModleTogles />
               <button
@@ -140,7 +140,7 @@ const HeroHeader = () => {
         </nav>
       </div>
 
-      {/* ── Mobile drawer  */}
+      {/*  Mobile drawer  */}
       <div
         className={cn(
           'lg:hidden mx-3 overflow-hidden transition-all duration-300 ease-in-out',

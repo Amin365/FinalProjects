@@ -85,7 +85,7 @@ export default function HeroSection() {
             /> */}
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 w-full">
+          <div className="max-w-7xl mx-auto px-1 w-full">
             <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
 
               {/* ── LEFT: copy ─── */}
@@ -108,7 +108,7 @@ export default function HeroSection() {
                   preset="fade-in-blur"
                   speedSegment={0.3}
                   as="h1"
-                  className="text-[40px] md:text-[52px] lg:text-[58px] font-extrabold text-slate-900 dark:text-white leading-[1.08] tracking-tight mb-6"
+                  className="text-[40px] md:text-[52px] lg:text-[50px] font-extrabold text-slate-900 dark:text-white leading-[1.2] tracking-tight mb-6"
                 >
                   Building Stronger Communities Through Collaboration
                 </TextEffect>
@@ -162,7 +162,7 @@ export default function HeroSection() {
               {/*  RIGHT: visual card  */}
               <div className="flex-1 relative hidden lg:flex items-center justify-center">
                 {/* main card */}
-                <div className="relative w-[380px] h-[440px]">
+                <div className="relative w-[480px] h-[440px]">
 
                   {/* Big background glow */}
                   <div className="absolute inset-8 rounded-3xl bg-orange-400/20 blur-2xl" />
@@ -198,7 +198,7 @@ export default function HeroSection() {
                           </div>
                           <div className="h-2 w-full bg-orange-50 dark:bg-orange-900/20 rounded-full overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500"
+                              className="h-full rounded-full bg-gradient-to-r from-orange-200 to-amber-300"
                               style={{ width: `${pct}%` }}
                             />
                           </div>

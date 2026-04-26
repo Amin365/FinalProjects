@@ -59,9 +59,13 @@ const PermissionMatrix = lazy(() => import("./components/Admin/PermissionMatrix"
 const SetupPassword = lazy(() => import("./components/login/SetupPassword"));
 const ResourceCreate = lazy(() => import("./components/Resources/ResourceCreatePage"));
 const ResourceDetails = lazy(() => import("./components/Resources/ResourceDetails"));
+// const ResourceCreate = lazy(() => import("./components/Resources/ResourceCreatePage"));
+const StudentResources = lazy(() => import("./components/Resources/StudentResource"));
 const ProgrammeTables = lazy(() => import("./components/Programme/ProgramTable"));
 const ProgrammeCard=lazy(()=>import("./components/Programme/ProgrammeLists"))
 const EnrollmentsTable = lazy(() => import("./components/Enrollments/EnrollmentsTable"));
+
+const TeamVolunteer= lazy(() => import("./components/Volunteer/TeamVal"));
 function App() {
   return (
     <>
@@ -78,6 +82,8 @@ function App() {
        
         <Route path="/" element={<Homepage />} />
            <Route path="/programmecards" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeCard /></Suspense>} />
+ 
+           <Route path="/volunteer" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><TeamVolunteer /></Suspense>} />
  
         <Route path="/members/new" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><MembersFormPublic /></Suspense>} />
         {/* Phase 7: Public Resource Hub routes */}
@@ -136,6 +142,7 @@ function App() {
   
  {/* Resources */}
   <Route path="resources" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ResourceTable /></Suspense>} />
+  <Route path="studentsresources" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><StudentResources /></Suspense>} />
   <Route path="resources/new" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ResourceCreate /></Suspense>} />
   <Route path="resources/edit/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ResourceCreate /></Suspense>} />
   <Route path="resources/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ResourceDetails /></Suspense>} />

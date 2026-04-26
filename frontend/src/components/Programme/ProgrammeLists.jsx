@@ -11,9 +11,9 @@ import {
 import Heros from "../Homepage/HeroSections";
 
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    DATA
-══════════════════════════════════════════════════════════════ */
+ */
 /* single brand palette — every card uses these */
 const OR = { accent: "#f97316", accentLight: "#fff7ed", accentMid: "#fed7aa" };
 
@@ -102,9 +102,9 @@ const BADGE_STYLES = {
   full:     { bg: "#f8fafc", color: "#94a3b8", border: "#e2e8f0" },
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    ENROLLMENT DIALOG — 4 steps
-══════════════════════════════════════════════════════════════ */
+ */
 
 const STEPS = [
   { id: 1, label: "Personal info",   icon: User },
@@ -330,7 +330,7 @@ const StepGoals = ({ data, onChange }) => {
 
   return (
     <div className="flex flex-col gap-5">
-    <Heros />
+ 
       <FieldWrap>
         <Label req>Why are you enrolling? (pick all that apply)</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
@@ -407,7 +407,7 @@ const StepGoals = ({ data, onChange }) => {
   );
 };
 
-/* ── Success screen ─────────────────────────────────────────── */
+/* ── Success screen  */
 const SuccessScreen = ({ program, onClose }) => (
   <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-5">
     <div
@@ -452,7 +452,7 @@ const SuccessScreen = ({ program, onClose }) => (
   </div>
 );
 
-/* ── Enrollment Dialog ──────────────────────────────────────── */
+/* ── Enrollment Dialog  */
 const EMPTY_FORM = {
   // step 1
   firstName: "", lastName: "", email: "", phone: "", country: "", dob: "", gender: "",
@@ -507,6 +507,7 @@ const EnrollmentDialog = ({ program, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(15,15,20,0.55)", backdropFilter: "blur(6px)" }}
     >
+       <Heros />
       <div
         className="bg-white w-full max-w-2xl rounded-[28px] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-250"
         style={{ maxHeight: "92vh" }}
@@ -640,9 +641,9 @@ const EnrollmentDialog = ({ program, onClose }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    CARD COMPONENTS
-══════════════════════════════════════════════════════════════ */
+ */
 
 const Stars = ({ rating }) => (
   <div className="flex gap-0.5">
@@ -795,7 +796,7 @@ const ProgramCard = ({ program, onEnroll }) => {
   );
 };
 
-/* ── Stat ────────────────────────────────────────────────────── */
+/* ── Stat ─────────── */
 const Stat = ({ icon: Icon, value, label }) => (
   <div className="flex items-center gap-2.5">
     <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center">
@@ -808,9 +809,9 @@ const Stat = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    PAGE
-══════════════════════════════════════════════════════════════ */
+ */
 const ProgramsPage = () => {
   const [active, setActive] = useState("all");
   const [animKey, setAnimKey] = useState(0);
@@ -824,7 +825,10 @@ const ProgramsPage = () => {
 
   return (
     <div className="min-h-screen bg-white px-4 pt-16 pb-20">
-      <div className="max-w-6xl mx-auto">
+
+    <Heros />
+      <div className="max-w-6xl mx-auto mt-25">
+         
 
         {/* Header */}
         <div className="mb-14">
