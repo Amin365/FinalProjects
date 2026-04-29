@@ -109,8 +109,8 @@ function NotificationItem({ notification, onMarkRead, onDelete }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className={`p-4 border-b border-zinc-800/50 hover:bg-zinc-900/30 transition-colors ${
-        !read ? "bg-zinc-900/50" : ""
+      className={`p-4 border-b transition-colors ${
+        !read ? "" : ""
       }`}
     >
       <div className="flex items-start gap-3">
@@ -279,13 +279,13 @@ export default function NotificationCenter() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="bg-zinc-900/50 border-zinc-800">
+        <Card className=" ">
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">Total</p>
             <p className="text-2xl font-bold">{statsLoading ? "-" : statsData?.total || 0}</p>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
+        <Card className=" ">
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">Unread</p>
             <p className="text-2xl font-bold text-blue-500">
@@ -293,7 +293,7 @@ export default function NotificationCenter() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
+        <Card>
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">Read</p>
             <p className="text-2xl font-bold text-green-500">
@@ -301,7 +301,7 @@ export default function NotificationCenter() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900/50 border-zinc-800">
+        <Card className="">
           <CardContent className="p-4">
             <p className="text-xs text-zinc-500">This Page</p>
             <p className="text-2xl font-bold">{notifications.length}</p>
@@ -310,7 +310,7 @@ export default function NotificationCenter() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-zinc-900/50 border-zinc-800">
+      <Card className="">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -381,7 +381,7 @@ export default function NotificationCenter() {
       </Card>
 
       {/* Notifications List */}
-      <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="py-3 px-4 border-b border-zinc-800">
           <CardTitle className="text-base flex items-center justify-between">
             <span>Notifications ({total})</span>
