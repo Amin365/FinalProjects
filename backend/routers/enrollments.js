@@ -5,6 +5,7 @@ import {
   createEnrollment,
   deleteEnrollment,
   getAllEnrollments,
+  getEnrollmentById,
   getEnrollmentsForProgram,
   getEnrollmentsForUser,
   cancelEnrollment,
@@ -20,10 +21,11 @@ const upload = multer({
 });
 
 // POST /programs/:id/enroll  (multipart/form-data, optional file field "attachment")
-router.post("/programs/:id/enroll", protect, upload.single("attachment"), createEnrollment);
+router.post("/programs/:id/enroll", upload.single("attachment"), createEnrollment);
 
 // GET /enrollments
 router.get("/enrollments", getAllEnrollments);
+router.get("/enrollments/:id", getEnrollmentById);
 
 // GET /programs/:id/enrollments  (admin)
 router.get("/programs/:id/enrollments", getEnrollmentsForProgram);

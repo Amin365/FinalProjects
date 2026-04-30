@@ -64,6 +64,7 @@ const StudentResources = lazy(() => import("./components/Resources/StudentResour
 const ProgrammeTables = lazy(() => import("./components/Programme/ProgramTable"));
 const ProgrammeCard=lazy(()=>import("./components/Programme/ProgrammeLists"))
 const EnrollmentsTable = lazy(() => import("./components/Enrollments/EnrollmentsTable"));
+const EnrollmentDetails = lazy(() => import("./components/Enrollments/EnrollmentDetails"));
 const Attendance = lazy(() => import("./components/Attendance/AttendancePage"));
 const TeamVolunteer= lazy(() => import("./components/Volunteer/TeamVal"));
 function App() {
@@ -155,6 +156,7 @@ function App() {
   <Route path="attendance" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><Attendance /></Suspense>} />
  
   <Route path="enrollments" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><EnrollmentsTable /></Suspense>} />
+  <Route path="enrollments/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><EnrollmentDetails /></Suspense>} />
 
 
   <Route path="audit-log" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><AuditLogViewer /></Suspense>} />

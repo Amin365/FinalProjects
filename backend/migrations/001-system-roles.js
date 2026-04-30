@@ -8,8 +8,8 @@ export const systemRoles = async () => {
     const rolesData = [
       { role: "Super Admin", plural: "Super Admins", system: true, color: "#6366f1" },
       { role: "Admin", plural: "Admins", system: true, color: "#6366f1" },
-      { role: "Library Staff", plural: "Library Staffs", system: true, color: "#4f46e5", parent: null },
-      { role: "Student", plural: "Stundents", system: true, color: "#10b981", parent: null },
+      { role: "Library Staff", plural: "Library Staff", system: true, color: "#4f46e5", parent: null },
+      { role: "Student", plural: "Students", system: true, color: "#10b981", parent: null },
 
     ];
 

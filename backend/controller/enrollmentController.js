@@ -1,6 +1,7 @@
 import Program from "../models/Program.js";
 import Enrollment from "../models/Enrollment.js";
 import User from "../models/user.js";
+import mongoose from "mongoose";
 
 // Helper: count confirmed enrollments
 const countConfirmed = async (programId) =>
@@ -15,11 +16,56 @@ const promoteFromWaitlist = async (programId) => {
   return waitlisted;
 };
 
+const buildGuestUserFallback = (item) => {
+  const formData = item?.formData || {};
+  return {
+    _id: String(item.userId || ""),
+    first_name: formData.firstName || formData.fullName || "",
+    last_name: formData.lastName || "",
+    email: formData.email || String(item.userId || ""),
+    phone: formData.phone || "",
+    country: formData.country || "",
+    dob: formData.dob || "",
+    gender: formData.gender || "",
+    profile_picture: "",
+    isGuest: true,
+  };
+};
+
+const hydrateEnrollments = async (items) => {
+  const programIds = [...new Set(items.map((item) => item.programId).filter(Boolean))];
+  const userIds = [...new Set(items.map((item) => item.userId).filter(Boolean))];
+  const objectIdUserIds = userIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  const [programs, users] = await Promise.all([
+    Program.find({ _id: { $in: programIds } }).lean(),
+    objectIdUserIds.length
+      ? User.find({ _id: { $in: objectIdUserIds } })
+          .select("_id first_name last_name email profile_picture")
+          .lean()
+      : [],
+  ]);
+
+  const programMap = new Map(programs.map((program) => [String(program._id), program]));
+  const userMap = new Map(users.map((user) => [String(user._id), user]));
+
+  return items.map((item) => ({
+    ...item,
+    programId: programMap.get(String(item.programId)) || item.programId,
+    userId: userMap.get(String(item.userId)) || buildGuestUserFallback(item),
+    enrolledAt: item.createdAt,
+  }));
+};
+
 // Create enrollment
 export const createEnrollment = async (req, res) => {
   try {
     const { id: programId } = req.params;
-    const userId = req.user?._id || req.user?.id || req.body?.userId;
+    const formData = req.body.formData || {};
+    const guestEmail = String(formData.email || req.body?.email || "")
+      .trim()
+      .toLowerCase();
+    const userId = req.user?._id || req.user?.id || req.body?.userId || guestEmail;
     if (!userId) return res.status(400).json({ message: "userId is required" });
 
     const program = await Program.findById(programId).lean();
@@ -38,9 +84,6 @@ export const createEnrollment = async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "User already enrolled or waitlisted for this program", data: existing });
     }
-
-    // Normalize formData if provided
-    const formData = req.body.formData || {};
 
     // Handle optional attachment if multer populated req.file
     let attachment;
@@ -67,7 +110,9 @@ export const createEnrollment = async (req, res) => {
       formData,
     });
 
-    return res.status(201).json({ data: enrollment });
+    const [hydratedEnrollment] = await hydrateEnrollments([enrollment.toObject()]);
+
+    return res.status(201).json({ data: hydratedEnrollment });
   } catch (err) {
     console.error("createEnrollment error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -89,28 +134,8 @@ export const getAllEnrollments = async (req, res) => {
       Enrollment.countDocuments(filter),
     ]);
 
-    const programIds = [...new Set(items.map((item) => item.programId).filter(Boolean))];
-    const userIds = [...new Set(items.map((item) => item.userId).filter(Boolean))];
-
-    const [programs, users] = await Promise.all([
-      Program.find({ _id: { $in: programIds } }).lean(),
-      User.find({ _id: { $in: userIds } })
-        .select("_id first_name last_name email Profile_picture profileImage")
-        .lean(),
-    ]);
-
-    const programMap = new Map(programs.map((program) => [String(program._id), program]));
-    const userMap = new Map(users.map((user) => [String(user._id), user]));
-
     const normalizedQuery = String(q || "").trim().toLowerCase();
-
-    const hydratedItems = items
-      .map((item) => ({
-        ...item,
-        programId: programMap.get(String(item.programId)) || item.programId,
-        userId: userMap.get(String(item.userId)) || item.userId,
-        enrolledAt: item.createdAt,
-      }))
+    const hydratedItems = (await hydrateEnrollments(items))
       .filter((item) => {
         if (!normalizedQuery) return true;
 
@@ -137,6 +162,23 @@ export const getAllEnrollments = async (req, res) => {
     });
   } catch (err) {
     console.error("getAllEnrollments error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getEnrollmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const enrollment = await Enrollment.findById(id).lean();
+
+    if (!enrollment) {
+      return res.status(404).json({ message: "Enrollment not found" });
+    }
+
+    const [hydratedEnrollment] = await hydrateEnrollments([enrollment]);
+    return res.json({ data: hydratedEnrollment });
+  } catch (err) {
+    console.error("getEnrollmentById error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };

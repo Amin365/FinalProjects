@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search, Trash2 } from "lucide-react";
+import { Eye, RefreshCw, Search, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import api from "@/app/api/apislice";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ const STATUS_CLASSES = {
 };
 
 const EnrollmentsTable = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page] = useState(1);
@@ -169,9 +171,9 @@ const EnrollmentsTable = () => {
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-orange-100">
-                            {user.Profile_picture || user.profileImage ? (
+                            {user.Profile_picture || user.profile_picture || user.profileImage ? (
                               <img
-                                src={user.Profile_picture || user.profileImage}
+                                src={user.Profile_picture || user.profile_picture || user.profileImage}
                                 alt={fullName || "User"}
                                 className="h-full w-full object-cover"
                               />
@@ -198,13 +200,22 @@ const EnrollmentsTable = () => {
                       <td className="p-3">{formatDate(item.enrolledAt || item.createdAt)}</td>
 
                       <td className="p-3 text-right">
-                        <button
-                          type="button"
-                          className="rounded p-2 hover:bg-slate-100"
-                          onClick={() => setDeleteTarget(item)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </button>
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            className="rounded p-2 hover:bg-slate-100"
+                            onClick={() => navigate(`/dashboard/enrollments/${item._id}`)}
+                          >
+                            <Eye className="h-4 w-4 text-slate-600" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded p-2 hover:bg-slate-100"
+                            onClick={() => setDeleteTarget(item)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

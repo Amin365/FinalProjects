@@ -91,8 +91,35 @@ export const mainPermissions = async () => {
     }
 
     const rolePermissionMap = {
-      Moderator: ["View Moderator", "View Users"],
-      Members: ["View Members"],
+      Admin: [
+        "Preferences",
+        "Add Users",
+        "Edit Users",
+        "Delete Users",
+        "View Users",
+        "View Detail",
+        "Add Role",
+        "Edit Role",
+        "Delete Role",
+        "View Role",
+        "Manage Books",
+        "Manage Members",
+        "Manage Issues",
+        "View Programme",
+        "View Volunteer",
+        "View Resource",
+      ],
+      "Library Staff": [
+        "Manage Books",
+        "Manage Members",
+        "Manage Issues",
+        "View Resource",
+        "View Programme",
+      ],
+      Student: [
+        "View Resource",
+        "View Programme",
+      ],
     };
 
 for (const [roleName, permNames] of Object.entries(rolePermissionMap)) {
