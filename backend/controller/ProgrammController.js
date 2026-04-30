@@ -1,5 +1,5 @@
-// programController.js
 import Program from "../models/Program.js";
+import Enrollment from "../models/Enrollment.js";
 
 const ALLOWED_STATUS = ["active", "inactive", "completed", "draft"];
 
@@ -15,6 +15,53 @@ const normalizeAssistants = (assistants) => {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+};
+
+const attachEnrollmentStats = async (programs) => {
+  if (!programs.length) return programs;
+
+  const counts = await Enrollment.aggregate([
+    {
+      $match: {
+        programId: { $in: programs.map((program) => String(program._id)) },
+        status: { $in: ["confirmed", "waitlisted"] },
+      },
+    },
+    {
+      $group: {
+        _id: "$programId",
+        enrollmentCount: { $sum: 1 },
+        confirmedCount: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0],
+          },
+        },
+        waitlistedCount: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "waitlisted"] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  const countMap = new Map(counts.map((item) => [item._id, item]));
+
+  return programs.map((program) => {
+    const stats = countMap.get(String(program._id));
+    const confirmedCount = stats?.confirmedCount || 0;
+    const waitlistedCount = stats?.waitlistedCount || 0;
+    const enrollmentCount = stats?.enrollmentCount || 0;
+    const capacity = Number(program.capacity) || 0;
+
+    return {
+      ...program,
+      enrollmentCount,
+      confirmedCount,
+      waitlistedCount,
+      availableSeats: Math.max(capacity - confirmedCount, 0),
+    };
+  });
 };
 
 export const createProgram = async (req, res) => {
@@ -116,8 +163,10 @@ export const getPrograms = async (req, res) => {
       Program.countDocuments(filter),
     ]);
 
+    const enrichedPrograms = await attachEnrollmentStats(items);
+
     return res.json({
-      data: items,
+      data: enrichedPrograms,
       total,
       page: pageNum,
       limit: perPage,
@@ -137,7 +186,9 @@ export const getProgramById = async (req, res) => {
     const program = await Program.findById(id).lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
 
-    return res.json({ data: program });
+    const [enrichedProgram] = await attachEnrollmentStats([program]);
+
+    return res.json({ data: enrichedProgram });
   } catch (err) {
     console.error("getProgramById error:", err);
     return res.status(500).json({ message: "Server error" });

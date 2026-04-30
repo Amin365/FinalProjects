@@ -1,8 +1,6 @@
-
 import Program from "../models/Program.js";
 import Enrollment from "../models/Enrollment.js";
-import mongoose from "mongoose";
-import fs from "fs";
+import User from "../models/user.js";
 
 // Helper: count confirmed enrollments
 const countConfirmed = async (programId) =>
@@ -21,17 +19,14 @@ const promoteFromWaitlist = async (programId) => {
 export const createEnrollment = async (req, res) => {
   try {
     const { id: programId } = req.params;
-    // userId should come from authenticated session ideally
-    // but allow in body as fallback
-    const userId = req.user?.id || req.body?.userId;
+    const userId = req.user?._id || req.user?.id || req.body?.userId;
     if (!userId) return res.status(400).json({ message: "userId is required" });
 
     const program = await Program.findById(programId).lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
 
-    // require published programs to be enrollable
-    if (program.published !== true) {
-      return res.status(403).json({ message: "Program is not published for enrollment" });
+    if (program.status !== "active") {
+      return res.status(403).json({ message: "Only active programs can accept enrollments" });
     }
 
     // Prevent duplicate (non-cancelled) enrollment
@@ -66,7 +61,7 @@ export const createEnrollment = async (req, res) => {
 
     const enrollment = await Enrollment.create({
       programId,
-      userId,
+      userId: String(userId),
       status,
       attachment,
       formData,
@@ -75,6 +70,73 @@ export const createEnrollment = async (req, res) => {
     return res.status(201).json({ data: enrollment });
   } catch (err) {
     console.error("createEnrollment error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getAllEnrollments = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, q } = req.query;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const perPage = Math.min(200, Math.max(1, Number(limit) || 50));
+    const skip = (pageNum - 1) * perPage;
+
+    const filter = {};
+    if (status) filter.status = status;
+
+    const [items, total] = await Promise.all([
+      Enrollment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(perPage).lean(),
+      Enrollment.countDocuments(filter),
+    ]);
+
+    const programIds = [...new Set(items.map((item) => item.programId).filter(Boolean))];
+    const userIds = [...new Set(items.map((item) => item.userId).filter(Boolean))];
+
+    const [programs, users] = await Promise.all([
+      Program.find({ _id: { $in: programIds } }).lean(),
+      User.find({ _id: { $in: userIds } })
+        .select("_id first_name last_name email Profile_picture profileImage")
+        .lean(),
+    ]);
+
+    const programMap = new Map(programs.map((program) => [String(program._id), program]));
+    const userMap = new Map(users.map((user) => [String(user._id), user]));
+
+    const normalizedQuery = String(q || "").trim().toLowerCase();
+
+    const hydratedItems = items
+      .map((item) => ({
+        ...item,
+        programId: programMap.get(String(item.programId)) || item.programId,
+        userId: userMap.get(String(item.userId)) || item.userId,
+        enrolledAt: item.createdAt,
+      }))
+      .filter((item) => {
+        if (!normalizedQuery) return true;
+
+        const programTitle =
+          typeof item.programId === "object" ? item.programId?.title : item.programId;
+        const userName =
+          typeof item.userId === "object"
+            ? `${item.userId?.first_name || ""} ${item.userId?.last_name || ""} ${item.userId?.email || ""}`
+            : item.userId;
+
+        return [programTitle, userName, item.status]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery);
+      });
+
+    return res.json({
+      data: hydratedItems,
+      total: normalizedQuery ? hydratedItems.length : total,
+      page: pageNum,
+      limit: perPage,
+      totalPages: Math.ceil((normalizedQuery ? hydratedItems.length : total) / perPage),
+    });
+  } catch (err) {
+    console.error("getAllEnrollments error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -106,10 +168,10 @@ export const getEnrollmentsForProgram = async (req, res) => {
 // List user's enrollments
 export const getEnrollmentsForUser = async (req, res) => {
   try {
-    const userId = req.user?.id || req.params.userId || req.query.userId;
+    const userId = req.user?._id || req.user?.id || req.params.userId || req.query.userId;
     if (!userId) return res.status(400).json({ message: "userId is required" });
 
-    const enrollments = await Enrollment.find({ userId }).sort({ createdAt: -1 }).lean();
+    const enrollments = await Enrollment.find({ userId: String(userId) }).sort({ createdAt: -1 }).lean();
     return res.json({ data: enrollments });
   } catch (err) {
     console.error("getEnrollmentsForUser error:", err);
@@ -141,6 +203,22 @@ export const cancelEnrollment = async (req, res) => {
     return res.json({ data: enrollment, promoted });
   } catch (err) {
     console.error("cancelEnrollment error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const deleteEnrollment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Enrollment.findByIdAndDelete(id).lean();
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Enrollment not found" });
+    }
+
+    return res.json({ success: true, data: deleted });
+  } catch (err) {
+    console.error("deleteEnrollment error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };

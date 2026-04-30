@@ -34,6 +34,7 @@ import DashboardRouter from "./routers/DashboardRouter.js"
 import { startScheduledReporting } from "./modules/scheduledReporting.js";
 import ResourceRouter from './routers/ResourceRouter.js';
 import { startScheduledPublishing } from "./modules/scheduledPublishing.js";
+import EnrollmentRouter from "./routers/enrollments.js";
 // Phase 8 - Admin Governance and Safety
 import AuditLogRouter from './routers/AuditLogRouter.js';
 import SystemHealthRouter from './routers/SystemHealthRouter.js';
@@ -121,6 +122,7 @@ app.use('/api',UserRouter)
 app.use('/api',DashboardRouter)
 
 app.use('/api', ResourceRouter);
+app.use("/api", EnrollmentRouter);
 //  - Admin Governance and Safety
 app.use('/api', AuditLogRouter);
 app.use('/api', SystemHealthRouter);

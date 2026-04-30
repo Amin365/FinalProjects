@@ -1,158 +1,126 @@
 import React, { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, RefreshCw, Trash2, Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import api from "@/app/api/apislice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-// OPTIONAL (if using navigation)
-// import { useRouter } from "next/navigation";
 
 const fetchEnrollments = async ({ page, limit }) => {
-  const res = await api.get("/enrollments", { params: { page, limit } });
-  return res.data;
+  const response = await api.get("/enrollments", { params: { page, limit } });
+  return response.data;
 };
 
-const formatDate = (dateStr) =>
-  dateStr ? new Date(dateStr).toLocaleDateString() : "-";
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString();
+};
 
-const getInitials = (name = "") => {
-  return name
+const getInitials = (name = "") =>
+  name
     .split(" ")
-    .map((n) => n[0])
+    .map((part) => part[0])
+    .filter(Boolean)
     .join("")
     .toUpperCase();
+
+const STATUS_CLASSES = {
+  confirmed: "bg-emerald-100 text-emerald-700",
+  waitlisted: "bg-amber-100 text-amber-700",
+  cancelled: "bg-slate-200 text-slate-700",
 };
 
 const EnrollmentsTable = () => {
   const queryClient = useQueryClient();
-  // const router = useRouter(); // enable if using navigation
-
   const [search, setSearch] = useState("");
   const [page] = useState(1);
   const [limit] = useState(50);
-
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: ["admin-enrollments", { page, limit }],
     queryFn: () => fetchEnrollments({ page, limit }),
-    staleTime: 30000,
+    staleTime: 30_000,
   });
 
   const enrollments = data?.data || [];
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      const res = await api.delete(`/enrollments/${id}`);
-      return res.data;
+      const response = await api.delete(`/enrollments/${id}`);
+      return response.data;
     },
     onSuccess: () => {
       toast.success("Enrollment removed");
       queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
-      setIsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["public-programs"] });
       setDeleteTarget(null);
     },
-    onError: () => {
-      toast.error("Failed to remove enrollment");
-      setIsDialogOpen(false);
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to remove enrollment");
     },
   });
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
+    const needle = search.trim().toLowerCase();
+    if (!needle) return enrollments;
 
-    return enrollments.filter((e) => {
-      const haystack = [
-        e.userId?.first_name,
-        e.userId?.last_name,
-        e.userId?.email,
-        e.programId?.title,
-        e.status,
-      ]
-        .filter(Boolean)
+    return enrollments.filter((item) => {
+      const userName =
+        typeof item.userId === "object"
+          ? `${item.userId?.first_name || ""} ${item.userId?.last_name || ""} ${item.userId?.email || ""}`
+          : item.userId || "";
+      const programTitle =
+        typeof item.programId === "object" ? item.programId?.title || "" : item.programId || "";
+
+      return [userName, programTitle, item.status]
         .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(q);
+        .toLowerCase()
+        .includes(needle);
     });
   }, [enrollments, search]);
 
-  const confirmDelete = (enrollment) => {
-    setDeleteTarget(enrollment);
-    setIsDialogOpen(true);
-  };
-
-  const handleAddEnrollment = () => {
-    // OPTION 1: open modal (implement later)
-    console.log("Open Add Enrollment Modal");
-
-    // OPTION 2: navigate
-    // router.push("/admin/enrollments/create");
-  };
-
   return (
-    <div className="p-4 md:p-6 flex flex-col gap-4">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Enrollments
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-300">
-            Manage users enrolled in your programs.
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Enrollments</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-300">Real enrollment records saved from the program list.</p>
         </div>
 
-        {/* ACTION BUTTONS */}
         <div className="flex items-center gap-2">
-          {/* Refresh */}
           <Button variant="outline" onClick={refetch} disabled={isFetching}>
-            <RefreshCw
-              className={cn("h-4 w-4", isFetching && "animate-spin")}
-            />
-          </Button>
-
-          {/* Add Enrollment */}
-          <Button
-            onClick={handleAddEnrollment}
-            className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-1"
-          >
-            <Plus className="h-4 w-4" />
-            Add Enrollment
+            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
           </Button>
         </div>
       </div>
 
-      {/* SEARCH */}
       <Card>
-        <CardContent className="p-4 flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <CardContent className="flex flex-col items-center gap-3 p-4 md:flex-row">
+          <div className="relative max-w-xl flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               className="pl-9"
-              placeholder="Search users, program, status..."
+              placeholder="Search learner, program, status..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="text-xs text-slate-500">
-            {filtered.length} results
-          </div>
+          <div className="text-xs text-slate-500">{filtered.length} results</div>
         </CardContent>
       </Card>
 
-      {/* TABLE */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b">
+            <thead className="border-b bg-slate-50 dark:bg-slate-900">
               <tr>
-                <th className="p-3 text-left">User</th>
+                <th className="p-3 text-left">Learner</th>
                 <th className="p-3 text-left">Program</th>
                 <th className="p-3 text-left">Status</th>
                 <th className="p-3 text-left">Enrolled</th>
@@ -172,12 +140,12 @@ const EnrollmentsTable = () => {
               {!isLoading && error && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-red-500">
-                    Failed to load enrollments
+                    Failed to load enrollments.
                   </td>
                 </tr>
               )}
 
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && !error && filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-slate-400">
                     No enrollments found.
@@ -186,112 +154,93 @@ const EnrollmentsTable = () => {
               )}
 
               {!isLoading &&
-                filtered.map((e) => (
-                  <tr
-                    key={e._id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-                  >
-                    {/* USER */}
-                    <td className="p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-100 flex items-center justify-center">
-                          {e.userId?.profileImage ? (
-                            <img
-                              src={e.userId.profileImage}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-orange-600 font-semibold">
-                              {getInitials(
-                                `${e.userId?.first_name || ""} ${
-                                  e.userId?.last_name || ""
-                                }`
-                              )}
-                            </span>
-                          )}
-                        </div>
+                !error &&
+                filtered.map((item) => {
+                  const user =
+                    typeof item.userId === "object"
+                      ? item.userId
+                      : { first_name: "", last_name: "", email: item.userId, Profile_picture: "" };
+                  const program =
+                    typeof item.programId === "object" ? item.programId : { title: item.programId };
+                  const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
 
-                        <div>
-                          <div className="font-semibold">
-                            {e.userId?.first_name} {e.userId?.last_name}
+                  return (
+                    <tr key={item._id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-orange-100">
+                            {user.Profile_picture || user.profileImage ? (
+                              <img
+                                src={user.Profile_picture || user.profileImage}
+                                alt={fullName || "User"}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="font-semibold text-orange-600">{getInitials(fullName || user.email || "U")}</span>
+                            )}
                           </div>
-                          <div className="text-xs text-slate-500">
-                            {e.userId?.email}
+
+                          <div>
+                            <div className="font-semibold">{fullName || "Unknown user"}</div>
+                            <div className="text-xs text-slate-500">{user.email || "-"}</div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* PROGRAM */}
-                    <td className="p-3">
-                      {e.programId?.title || "-"}
-                    </td>
+                      <td className="p-3">{program.title || "-"}</td>
 
-                    {/* STATUS */}
-                    <td className="p-3">
-                      <Badge
-                        className={cn(
-                          "border-0",
-                          e.status === "active" &&
-                            "bg-green-100 text-green-700",
-                          e.status === "pending" &&
-                            "bg-yellow-100 text-yellow-700",
-                          e.status === "completed" &&
-                            "bg-blue-100 text-blue-700"
-                        )}
-                      >
-                        {e.status}
-                      </Badge>
-                    </td>
+                      <td className="p-3">
+                        <Badge className={cn("border-0 capitalize", STATUS_CLASSES[item.status] || STATUS_CLASSES.confirmed)}>
+                          {item.status}
+                        </Badge>
+                      </td>
 
-                    {/* DATE */}
-                    <td className="p-3">
-                      {formatDate(e.enrolledAt)}
-                    </td>
+                      <td className="p-3">{formatDate(item.enrolledAt || item.createdAt)}</td>
 
-                    {/* ACTIONS */}
-                    <td className="p-3 text-right">
-                      <button
-                        className="p-2 hover:bg-slate-100 rounded"
-                        onClick={() => confirmDelete(e)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          className="rounded p-2 hover:bg-slate-100"
+                          onClick={() => setDeleteTarget(item)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {/* DELETE MODAL */}
-      {isDialogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">
-              Remove Enrollment
-            </h3>
-
-            <p className="text-sm text-slate-500 mb-6">
-              Are you sure you want to remove this user from the program?
+      {deleteTarget && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 dark:bg-slate-900">
+            <h3 className="mb-4 text-lg font-bold">Remove Enrollment</h3>
+            <p className="mb-6 text-sm text-slate-500">
+              This will permanently remove the enrollment record for{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {typeof deleteTarget.programId === "object" ? deleteTarget.programId?.title : deleteTarget.programId}
+              </span>
+              .
             </p>
 
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 bg-slate-100 rounded"
-                onClick={() => setIsDialogOpen(false)}
+                type="button"
+                className="rounded bg-slate-100 px-4 py-2"
+                onClick={() => setDeleteTarget(null)}
               >
                 Cancel
               </button>
-
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded"
-                onClick={() =>
-                  deleteMutation.mutate(deleteTarget?._id)
-                }
+                type="button"
+                className="rounded bg-red-600 px-4 py-2 text-white"
+                onClick={() => deleteMutation.mutate(deleteTarget._id)}
+                disabled={deleteMutation.isPending}
               >
-                Remove
+                {deleteMutation.isPending ? "Removing..." : "Remove"}
               </button>
             </div>
           </div>

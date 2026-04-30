@@ -2,13 +2,12 @@ import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search, RefreshCw, Plus, Trash2, Edit2, X,
-  BookOpen, Users, CalendarRange, Activity, ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import api from "@/app/api/apislice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +36,6 @@ const EMPTY_FORM = {
 
 const fetchPrograms = ({ page, limit }) =>
   api.get("/programs", { params: { page, limit } }).then((r) => r.data);
-
-const fetchTeachers = () =>
-  api.get("/teachers").then((r) => r.data?.data ?? r.data ?? []);
 
 const fmt = (d) => {
   try { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
@@ -84,14 +80,6 @@ const ProgramTable = () => {
     staleTime: 30_000,
   });
 
-  const { data: teachersRaw = [], isLoading: isLoadingTeachers } = useQuery({
-    queryKey: ["teachers"],
-    queryFn: fetchTeachers,
-    staleTime: 60_000,
-    enabled: isModalOpen,           // only fetch when modal opens
-  });
-
-  const teachers = Array.isArray(teachersRaw) ? teachersRaw : [];
   const programs = data?.data || [];
 
   /* mutations */
@@ -151,7 +139,7 @@ const ProgramTable = () => {
 
   const submitModal = () => {
     if (!form.title.trim()) return toast.error("Title is required");
-    if (!form.teacherId) return toast.error("Please select a teacher");
+    if (!form.teacherId.trim()) return toast.error("Teacher is required");
     if (!form.startDate || !form.endDate) return toast.error("Start and end dates are required");
 
     const payload = {
@@ -306,25 +294,15 @@ const ProgramTable = () => {
                   <input className={inputCls} placeholder="e.g. Advanced Python Bootcamp" value={form.title} onChange={f("title")} />
                 </FieldWrap>
 
-                {/* Teacher dropdown */}
+                {/* Teacher */}
                 <FieldWrap>
                   <Label required>Teacher</Label>
-                  <div className="relative">
-                    <select
-                      className={cn(inputCls, "appearance-none pr-9 cursor-pointer")}
-                      value={form.teacherId}
-                      onChange={f("teacherId")}
-                      disabled={isLoadingTeachers}
-                    >
-                      <option value="">{isLoadingTeachers ? "Loading teachers…" : "Select a teacher"}</option>
-                      {teachers.map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.name || t.fullName || t.username || t.email || t._id}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
+                  <input
+                    className={inputCls}
+                    placeholder="Teacher name or identifier"
+                    value={form.teacherId}
+                    onChange={f("teacherId")}
+                  />
                 </FieldWrap>
 
                 {/* Capacity */}
