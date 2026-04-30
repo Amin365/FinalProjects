@@ -138,7 +138,7 @@ const data = {
     },
     {
       title: "Attendance",
-      url: "/dashboard/pending-reports",
+      url: "/dashboard/attendance",
       icon: ClipboardList,
     },
 
