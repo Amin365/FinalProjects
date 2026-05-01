@@ -29,7 +29,7 @@ export const runMigrations = async () => {
       }
     }
 
-    console.log('All migrations ran successfully ✅');
+    console.log('All migrations ran successfully ');
   } catch (error) {
     console.error('Error running migrations:', error);
   }

@@ -137,7 +137,7 @@ const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit",
 const fmtNum  = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n;
 const getMeta = (r) => r.pages ? `${r.pages} pages` : r.slides ? `${r.slides} slides` : r.sheets ? `${r.sheets} sheets` : r.duration ?? r.fileSize ?? "—";
 
-/* ── Stars ───────────────────── */
+/*  Stars ─ */
 const Stars = ({ rating }) => (
   <div className="flex items-center gap-0.5">
     {[1,2,3,4,5].map(i => (
@@ -161,7 +161,7 @@ const ResourceCard = ({ resource, saved, onSave }) => {
   return (
     <div className="group flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden">
 
-      {/* ── Coloured header ─ */}
+      {/*  Coloured header ─ */}
       <div className={`relative ${tm.bg} px-6 pt-6 pb-5`}>
         {/* featured badge */}
         {resource.featured && (
@@ -198,7 +198,7 @@ const ResourceCard = ({ resource, saved, onSave }) => {
         </div>
       </div>
 
-      {/* ── Body ──────────── */}
+      {/*  Body  */}
       <div className="flex flex-col flex-1 px-6 py-4 gap-4">
         {/* Description */}
         <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
@@ -232,7 +232,7 @@ const ResourceCard = ({ resource, saved, onSave }) => {
         </div>
       </div>
 
-      {/* ── Footer  */}
+      {/*  Footer  */}
       <div className="px-6 pb-6 pt-2 border-t border-slate-100 dark:border-gray-800 mt-auto">
         <div className="flex items-center gap-3 mt-4">
           {/* Save */}
@@ -314,10 +314,10 @@ export default function StudentResources() {
       <div className="relative bg-white dark:bg-gray-900 border-b border-slate-100 dark:border-gray-800 overflow-hidden">
         {/* background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-orange-100/60 dark:bg-orange-900/10 blur-3xl" />
+          <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full " />
           <div
             className="absolute inset-0 opacity-[0.025] dark:opacity-[0.03]"
-            style={{ backgroundImage: "radial-gradient(circle, #f97316 1px, transparent 1px)", backgroundSize: "32px 32px" }}
+            // style={{ backgroundImage: "radial-gradient(circle, #f97316 1px, transparent 1px)", backgroundSize: "32px 32px" }}
           />
         </div>
 
@@ -362,7 +362,7 @@ export default function StudentResources() {
             </div>
           </div>
 
-          {/* ── Search + Sort row  */}
+          {/*  Search + Sort row  */}
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             <div className="relative flex-1 max-w-lg">
               <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -393,7 +393,7 @@ export default function StudentResources() {
             </div>
           </div>
 
-          {/* ── Category tabs  */}
+          {/*  Category tabs  */}
           <div className="flex items-center gap-2 mt-5 flex-wrap">
             {CATEGORIES.map(({ key, label }) => (
               <button key={key} onClick={() => setCategory(key)}

@@ -1,5 +1,8 @@
 import Program from "../models/Program.js";
 import Enrollment from "../models/Enrollment.js";
+import Clubreq from "../models/Clubreq.js";
+import User from "../models/user.js";
+import Role from "../models/Role.js";
 
 const ALLOWED_STATUS = ["active", "inactive", "completed", "draft"];
 
@@ -15,6 +18,92 @@ const normalizeAssistants = (assistants) => {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+};
+
+const isAdminRoleName = (roleName = "") =>
+  /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
+
+const getRequestRoleName = (req) => {
+  const roleSource = req.user?.role;
+  if (!roleSource) return "";
+  if (typeof roleSource === "object") return String(roleSource.role || roleSource.name || "").toLowerCase();
+  return String(roleSource).toLowerCase();
+};
+
+const getTeacherMap = async (teacherIds) => {
+  const uniqueTeacherIds = [...new Set((teacherIds || []).filter(Boolean).map(String))];
+  if (!uniqueTeacherIds.length) return new Map();
+
+  const users = await User.find({ _id: { $in: uniqueTeacherIds } })
+    .select("_id first_name last_name username email")
+    .lean();
+
+  return new Map(
+    users.map((user) => [
+      String(user._id),
+      {
+        _id: user._id,
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        username: user.username || "",
+        email: user.email || "",
+        fullName: [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || user.email || String(user._id),
+      },
+    ])
+  );
+};
+
+const getTeacherFilterForRequest = (req) => {
+  const roleName = getRequestRoleName(req);
+  if (!req.user?._id || !roleName || isAdminRoleName(roleName)) return null;
+  if (roleName === "library staff" || roleName === "teacher") {
+    return String(req.user._id);
+  }
+  return "__deny__";
+};
+
+const getTeacherRoleIds = async () => {
+  const teacherRoles = await Role.find({
+    $or: [
+      { role: { $regex: /^library\s*staff$/i } },
+      { plural: { $regex: /^library\s*staff$/i } },
+      { role: { $regex: /^teacher$/i } },
+      { plural: { $regex: /^teachers?$/i } },
+    ],
+  })
+    .select("_id")
+    .lean();
+
+  return teacherRoles.map((role) => role._id);
+};
+
+const getAvailableTeacherUsers = async () => {
+  const teacherRoleIds = await getTeacherRoleIds();
+  const approvedRequests = await Clubreq.find({ status: "Approved" })
+    .select("email FullName userId")
+    .lean();
+
+  const approvedEmails = [...new Set(approvedRequests.map((request) => String(request.email || "").trim().toLowerCase()).filter(Boolean))];
+  const approvedUserIds = approvedRequests.map((request) => request.userId).filter(Boolean);
+
+  const teacherUsers = await User.find({
+    $or: [
+      approvedUserIds.length ? { _id: { $in: approvedUserIds } } : null,
+      approvedEmails.length ? { email: { $in: approvedEmails } } : null,
+      teacherRoleIds.length ? { role: { $in: teacherRoleIds } } : null,
+    ].filter(Boolean),
+  })
+    .select("_id first_name last_name username email role")
+    .lean();
+
+  return teacherUsers.map((user) => ({
+    _id: String(user._id),
+    first_name: user.first_name || "",
+    last_name: user.last_name || "",
+    username: user.username || "",
+    email: user.email || "",
+    fullName: [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || user.username || user.email || String(user._id),
+  }));
 };
 
 const attachEnrollmentStats = async (programs) => {
@@ -47,12 +136,15 @@ const attachEnrollmentStats = async (programs) => {
 
   const countMap = new Map(counts.map((item) => [item._id, item]));
 
+  const teacherMap = await getTeacherMap(programs.map((program) => program.teacherId));
+
   return programs.map((program) => {
     const stats = countMap.get(String(program._id));
     const confirmedCount = stats?.confirmedCount || 0;
     const waitlistedCount = stats?.waitlistedCount || 0;
     const enrollmentCount = stats?.enrollmentCount || 0;
     const capacity = Number(program.capacity) || 0;
+    const teacher = teacherMap.get(String(program.teacherId)) || null;
 
     return {
       ...program,
@@ -60,8 +152,20 @@ const attachEnrollmentStats = async (programs) => {
       confirmedCount,
       waitlistedCount,
       availableSeats: Math.max(capacity - confirmedCount, 0),
+      teacher,
+      teacherName: teacher?.fullName || program.teacherId,
     };
   });
+};
+
+export const getAvailableTeachers = async (req, res) => {
+  try {
+    const teachers = await getAvailableTeacherUsers();
+    return res.json({ data: teachers });
+  } catch (err) {
+    console.error("getAvailableTeachers error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const createProgram = async (req, res) => {
@@ -84,6 +188,11 @@ export const createProgram = async (req, res) => {
     }
     if (!teacherId || !String(teacherId).trim()) {
       return res.status(400).json({ message: "teacherId is required" });
+    }
+    const teacherCandidates = await getAvailableTeacherUsers();
+    const teacherExists = teacherCandidates.some((teacher) => String(teacher._id) === String(teacherId).trim());
+    if (!teacherExists) {
+      return res.status(400).json({ message: "teacherId must be an approved teacher account" });
     }
 
     const cap = Number(capacity);
@@ -146,6 +255,13 @@ export const getPrograms = async (req, res) => {
     const skip = (pageNum - 1) * perPage;
 
     const filter = {};
+    const teacherScope = req.query.mine === "true" ? getTeacherFilterForRequest(req) : null;
+    if (teacherScope === "__deny__") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    if (teacherScope) {
+      filter.teacherId = teacherScope;
+    }
     if (status && ALLOWED_STATUS.includes(status)) filter.status = status;
 
     if (q?.trim()) {
@@ -185,6 +301,10 @@ export const getProgramById = async (req, res) => {
 
     const program = await Program.findById(id).lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
+    const teacherScope = getTeacherFilterForRequest(req);
+    if (teacherScope === "__deny__" || (teacherScope && String(program.teacherId) !== teacherScope)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     const [enrichedProgram] = await attachEnrollmentStats([program]);
 
@@ -202,6 +322,10 @@ export const updateProgram = async (req, res) => {
 
     const program = await Program.findById(id);
     if (!program) return res.status(404).json({ message: "Program not found" });
+    const teacherScope = getTeacherFilterForRequest(req);
+    if (teacherScope === "__deny__" || teacherScope) {
+      return res.status(403).json({ message: "Only admin can update programs" });
+    }
 
     const {
       title,
@@ -228,6 +352,11 @@ export const updateProgram = async (req, res) => {
     if (teacherId !== undefined) {
       if (!teacherId || !String(teacherId).trim()) {
         return res.status(400).json({ message: "teacherId cannot be empty" });
+      }
+      const teacherCandidates = await getAvailableTeacherUsers();
+      const teacherExists = teacherCandidates.some((teacher) => String(teacher._id) === String(teacherId).trim());
+      if (!teacherExists) {
+        return res.status(400).json({ message: "teacherId must be an approved teacher account" });
       }
       program.teacherId = String(teacherId).trim();
     }
@@ -277,6 +406,11 @@ export const deleteProgram = async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ message: "Program id is required" });
+
+    const teacherScope = getTeacherFilterForRequest(req);
+    if (teacherScope === "__deny__" || teacherScope) {
+      return res.status(403).json({ message: "Only admin can delete programs" });
+    }
 
     const deleted = await Program.findByIdAndDelete(id).lean();
     if (!deleted) return res.status(404).json({ message: "Program not found" });

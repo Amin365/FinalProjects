@@ -3,6 +3,21 @@ import Enrollment from "../models/Enrollment.js";
 import User from "../models/user.js";
 import mongoose from "mongoose";
 
+const getRequestRoleName = (req) => {
+  const roleSource = req.user?.role;
+  if (!roleSource) return "";
+  if (typeof roleSource === "object") return String(roleSource.role || roleSource.name || "").toLowerCase();
+  return String(roleSource).toLowerCase();
+};
+
+const getTeacherScopeForRequest = (req) => {
+  const roleName = getRequestRoleName(req);
+  if (!req.user?._id || !roleName) return null;
+  if (/super\s*admin/i.test(roleName) || /^admin$/i.test(roleName)) return null;
+  if (roleName === "library staff" || roleName === "teacher") return String(req.user._id);
+  return "__deny__";
+};
+
 // Helper: count confirmed enrollments
 const countConfirmed = async (programId) =>
   Enrollment.countDocuments({ programId, status: "confirmed" });
@@ -129,6 +144,15 @@ export const getAllEnrollments = async (req, res) => {
     const filter = {};
     if (status) filter.status = status;
 
+    const teacherScope = req.query.mine === "true" ? getTeacherScopeForRequest(req) : null;
+    if (teacherScope === "__deny__") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    if (teacherScope) {
+      const teacherPrograms = await Program.find({ teacherId: teacherScope }).select("_id").lean();
+      filter.programId = { $in: teacherPrograms.map((program) => String(program._id)) };
+    }
+
     const [items, total] = await Promise.all([
       Enrollment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(perPage).lean(),
       Enrollment.countDocuments(filter),
@@ -173,6 +197,17 @@ export const getEnrollmentById = async (req, res) => {
 
     if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
+    }
+
+    const teacherScope = getTeacherScopeForRequest(req);
+    if (teacherScope === "__deny__") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    if (teacherScope) {
+      const program = await Program.findById(enrollment.programId).select("teacherId").lean();
+      if (!program || String(program.teacherId) !== teacherScope) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     }
 
     const [hydratedEnrollment] = await hydrateEnrollments([enrollment]);
@@ -252,6 +287,11 @@ export const cancelEnrollment = async (req, res) => {
 export const deleteEnrollment = async (req, res) => {
   try {
     const { id } = req.params;
+    const teacherScope = getTeacherScopeForRequest(req);
+    if (teacherScope === "__deny__" || teacherScope) {
+      return res.status(403).json({ message: "Only admin can delete enrollments" });
+    }
+
     const deleted = await Enrollment.findByIdAndDelete(id).lean();
 
     if (!deleted) {

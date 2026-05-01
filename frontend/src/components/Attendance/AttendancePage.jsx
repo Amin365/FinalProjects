@@ -6,9 +6,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    MOCK DATA — swap with useQuery from your API
-══════════════════════════════════════════════════════════════ */
+ */
 const MOCK_PROGRAMS = [
   { id: "p1", title: "Full-stack web development",  enrolled: 8,  startDate: "2025-02-01", endDate: "2025-05-30" },
   { id: "p2", title: "Data science & ML",            enrolled: 4,  startDate: "2025-03-01", endDate: "2025-06-01" },
@@ -47,9 +47,9 @@ const MOCK_STUDENTS = {
   ],
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    CONSTANTS
-══════════════════════════════════════════════════════════════ */
+ */
 const STATUS = {
   present: { label: "Present", icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-200 dark:border-emerald-800/40", dot: "bg-emerald-500", bar: "bg-emerald-400" },
   absent:  { label: "Absent",  icon: XCircle,      color: "text-red-600 dark:text-red-400",         bg: "bg-red-50 dark:bg-red-900/20",         border: "border-red-200 dark:border-red-800/40",         dot: "bg-red-500",     bar: "bg-red-400"     },
@@ -61,9 +61,9 @@ const today    = new Date().toISOString().slice(0, 10);
 const fmtDate  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const fmtShort = (d) => new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" });
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    STATUS TOGGLE — cycles through statuses on click
-══════════════════════════════════════════════════════════════ */
+ */
 const StatusToggle = ({ value, onChange }) => {
   const keys = Object.keys(STATUS);
   const meta = STATUS[value] || STATUS.absent;
@@ -78,9 +78,9 @@ const StatusToggle = ({ value, onChange }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    PROGRAM SIDEBAR CARD
-══════════════════════════════════════════════════════════════ */
+ */
 const ProgramCard = ({ program, selected, onClick, rate }) => (
   <button onClick={onClick}
     className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group
@@ -111,9 +111,9 @@ const ProgramCard = ({ program, selected, onClick, rate }) => (
   </button>
 );
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    MAIN PAGE
-══════════════════════════════════════════════════════════════ */
+ */
 export default function AttendancePage() {
   const [selected,  setSelected]  = useState(null);
   const [date,      setDate]      = useState(today);

@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-/* ================================
+/* 
    API
-================================ */
+ */
 const fetchJoinClubs = async ({ queryKey }) => {
   const [, page = 1, limit = 10, statusFilter = ""] = queryKey
   const params = { page, limit }
@@ -24,27 +24,27 @@ const fetchJoinClubs = async ({ queryKey }) => {
 const formatDate = (dateStr) =>
   dateStr ? new Date(dateStr).toLocaleDateString() : "—"
 
-/* ================================
+/* 
    Status Badge
-================================ */
+ */
 const StatusBadge = ({ status }) => (
   <span
     className={cn(
       "px-2 py-1 rounded-md text-xs font-semibold",
       status === "Approved"
-        ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
+        ? " text-green-700 dark:bg-green-800 dark:text-green-100"
         : status === "Rejected"
-        ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100"
-        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
+        ? " text-red-700 dark:bg-red-800 dark:text-red-100"
+        : "text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
     )}
   >
     {status}
   </span>
 )
 
-/* ================================
+/* 
    Review Dialog
-================================ */
+ */
 const ReviewDialog = ({ request, onClose, onSubmit, isLoading }) => {
   const [rejectionReason, setRejectionReason] = useState("")
   const [action, setAction] = useState(null) // "Approved" | "Rejected"
@@ -132,9 +132,9 @@ const ReviewDialog = ({ request, onClose, onSubmit, isLoading }) => {
   )
 }
 
-/* ================================
+/* 
    Component
-================================ */
+ */
 const JoinClubsTable = () => {
   const queryClient = useQueryClient()
 
@@ -223,7 +223,7 @@ const JoinClubsTable = () => {
       {/* Search */}
       <Card>
         <CardContent className="grid grid-cols-12 gap-4 items-center">
-          <div className="col-span-11 relative">
+          <div className="col-span-4 relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               size={18}
@@ -235,7 +235,7 @@ const JoinClubsTable = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="col-span-1 flex justify-end">
+          <div className="col-span-8 flex justify-end">
             <span className="text-xs font-medium px-2 py-1 rounded-md bg-slate-100 dark:bg-gray-700">
               {filteredRequests.length}
             </span>

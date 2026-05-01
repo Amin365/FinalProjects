@@ -25,6 +25,20 @@ async function findDefaultMemberRole() {
     .exec();
 }
 
+async function findTeacherRole() {
+  return Role.findOne({
+    $or: [
+      { role: { $regex: /^library\s*staff$/i } },
+      { plural: { $regex: /^library\s*staff$/i } },
+      { role: { $regex: /^teacher$/i } },
+      { plural: { $regex: /^teachers?$/i } },
+    ],
+  })
+    .select("_id role plural")
+    .lean()
+    .exec();
+}
+
 /**
  * Create a new member
  * POST /members
@@ -746,7 +760,9 @@ export const updateJoinClubStatus = async (req, res, next) => {
     let linkedUser = null;
 
     if (status === "Approved") {
-      const defaultMemberRole = await findDefaultMemberRole();
+      const teacherRole = await findTeacherRole();
+      const fallbackMemberRole = await findDefaultMemberRole();
+      const assignedRoleId = teacherRole?._id || fallbackMemberRole?._id || null;
 
       let member = await Member.findOne({ email: clubReq.email });
 
@@ -762,7 +778,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
           phone: clubReq.phone,
           status: "Active",
           isArchived: false,
-          role: defaultMemberRole?._id || null,
+          role: assignedRoleId,
         });
         member = await newMember.save();
         createdMember = member;
@@ -779,8 +795,8 @@ export const updateJoinClubStatus = async (req, res, next) => {
           memberChanged = true;
         }
 
-        if (!member.role && defaultMemberRole?._id) {
-          member.role = defaultMemberRole._id;
+        if (assignedRoleId && String(member.role || "") !== String(assignedRoleId)) {
+          member.role = assignedRoleId;
           memberChanged = true;
         }
 
@@ -810,7 +826,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
             email: clubReq.email,
             password: tempPassword,
             member_id: member.code || String(member._id),
-            role: member.role || defaultMemberRole?._id || null,
+            role: member.role || assignedRoleId,
             member: member._id,
             status: "pending",
             added_by: req.user?._id || null,
@@ -840,7 +856,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
                 status: "pending",
                 member: member._id,
                 member_id: member.code || String(member._id),
-                role: user.role || member.role || defaultMemberRole?._id || null,
+                role: member.role || user.role || assignedRoleId,
               },
               $unset: {
                 resetPasswordCode: 1,
@@ -855,6 +871,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
       }
 
       if (linkedUser) {
+        update.userId = linkedUser._id;
         try {
           await Notification.create({
             user: linkedUser._id,

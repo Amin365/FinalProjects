@@ -13,6 +13,19 @@ const isAdmin = async (userId) => {
   return /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
 };
 
+const isTeacher = async (userId) => {
+  const user = await User.findById(userId).populate("role", "role plural").lean();
+  if (!user) return false;
+  const roleName = (user.role?.role || user.role?.plural || "").toLowerCase();
+  return /^library\s*staff$/i.test(roleName) || /^teacher$/i.test(roleName);
+};
+
+const canManageProgramResource = async (userId, programId) => {
+  if (!programId) return false;
+  const program = await mongoose.model("Program").findById(programId).select("teacherId").lean();
+  return Boolean(program && String(program.teacherId) === String(userId));
+};
+
 const getUploadedFile = (file) => file?.path || file?.secure_url || file?.url || "";
 
 /**
@@ -23,8 +36,9 @@ export const createResource = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const canCreate = await isAdmin(userId);
-    if (!canCreate) return res.status(403).json({ message: "Only admin can create resources" });
+    const admin = await isAdmin(userId);
+    const teacher = await isTeacher(userId);
+    if (!admin && !teacher) return res.status(403).json({ message: "Only admin or assigned teacher can create resources" });
 
     const {
       title,
@@ -42,6 +56,9 @@ export const createResource = async (req, res) => {
 
     if (programId && !String(programId).trim()) {
       return res.status(400).json({ message: "Invalid programId" });
+    }
+    if (!admin && !(await canManageProgramResource(userId, programId))) {
+      return res.status(403).json({ message: "You can only create resources for programs you teach" });
     }
 
     const uploadedFile = getUploadedFile(req.files?.file?.[0]);
@@ -71,7 +88,7 @@ export const createResource = async (req, res) => {
  */
 export const getResources = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, category, accessLevel, programId, q, uploadedBy } = req.query;
+    const { page = 1, limit = 20, type, category, accessLevel, programId, q, uploadedBy, mine } = req.query;
 
     const pageNum = Math.max(1, Number(page));
     const perPage = Math.min(100, Math.max(1, Number(limit)));
@@ -83,6 +100,12 @@ export const getResources = async (req, res) => {
     if (accessLevel && ALLOWED_ACCESS.includes(accessLevel)) filter.accessLevel = accessLevel;
     if (programId && String(programId).trim()) filter.programId = String(programId).trim();
     if (uploadedBy && mongoose.isValidObjectId(uploadedBy)) filter.uploadedBy = uploadedBy;
+    if (mine === "true") {
+      const userId = req.user?._id;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const teacherPrograms = await mongoose.model("Program").find({ teacherId: String(userId) }).select("_id").lean();
+      filter.programId = { $in: teacherPrograms.map((program) => String(program._id)) };
+    }
 
     if (q?.trim()) {
       const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -142,14 +165,18 @@ export const updateResource = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const canUpdate = await isAdmin(userId);
-    if (!canUpdate) return res.status(403).json({ message: "Only admin can update resources" });
+    const admin = await isAdmin(userId);
+    const teacher = await isTeacher(userId);
+    if (!admin && !teacher) return res.status(403).json({ message: "Only admin or assigned teacher can update resources" });
 
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid resource id" });
 
     const resource = await Resource.findById(id);
     if (!resource) return res.status(404).json({ message: "Resource not found" });
+    if (!admin && !(await canManageProgramResource(userId, resource.programId))) {
+      return res.status(403).json({ message: "You can only update resources for programs you teach" });
+    }
 
     const { title, description, type, fileUrl, category, programId, accessLevel } = req.body || {};
 
@@ -176,7 +203,12 @@ export const updateResource = async (req, res) => {
 
     if (programId !== undefined) {
       if (programId === null || programId === "") resource.programId = null;
-      else resource.programId = String(programId).trim();
+      else {
+        if (!admin && !(await canManageProgramResource(userId, programId))) {
+          return res.status(403).json({ message: "You can only assign resources to programs you teach" });
+        }
+        resource.programId = String(programId).trim();
+      }
     }
 
     if (accessLevel !== undefined) {
@@ -200,14 +232,18 @@ export const deleteResource = async (req, res) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const canDelete = await isAdmin(userId);
-    if (!canDelete) return res.status(403).json({ message: "Only admin can delete resources" });
+    const admin = await isAdmin(userId);
+    const teacher = await isTeacher(userId);
+    if (!admin && !teacher) return res.status(403).json({ message: "Only admin or assigned teacher can delete resources" });
 
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid resource id" });
 
     const resource = await Resource.findById(id);
     if (!resource) return res.status(404).json({ message: "Resource not found" });
+    if (!admin && !(await canManageProgramResource(userId, resource.programId))) {
+      return res.status(403).json({ message: "You can only delete resources for programs you teach" });
+    }
 
     await resource.deleteOne();
     return res.json({ success: true, message: "Resource deleted" });
@@ -275,4 +311,3 @@ export const getResourceTypeSummary = async (_req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-

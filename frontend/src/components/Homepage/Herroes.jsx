@@ -15,7 +15,7 @@ import Footers from './Footer'
 import Faqs from './Faq'
 import JoinClub from './JoinClub'
 
-/* ── transition preset shared by animated groups  */
+/*  transition preset shared by animated groups  */
 const transitionVariants = {
   item: {
     hidden:  { opacity: 0, filter: 'blur(10px)', y: 16 },
@@ -26,7 +26,7 @@ const transitionVariants = {
   },
 }
 
-/* ── tiny stat pill  */
+/*  tiny stat pill  */
 const StatPill = ({ icon: Icon, value, label }) => (
   <div className="flex items-center gap-2.5 bg-white dark:bg-gray-900 border border-slate-100 dark:border-gray-800 rounded-2xl px-4 py-3 shadow-sm">
     <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
@@ -39,7 +39,7 @@ const StatPill = ({ icon: Icon, value, label }) => (
   </div>
 )
 
-/* ── floating badge chip  */
+/*  floating badge chip  */
 const FloatingChip = ({ children, className = '' }) => (
   <div className={cn(
     'absolute bg-white dark:bg-gray-900 border border-slate-100 dark:border-gray-800 rounded-2xl shadow-lg px-4 py-2.5 flex items-center gap-2.5 text-[12px] font-semibold text-slate-700 dark:text-slate-200',
@@ -49,7 +49,7 @@ const FloatingChip = ({ children, className = '' }) => (
   </div>
 )
 
-/* ── cn helper (inline, no import needed)  */
+/*  cn helper (inline, no import needed)  */
 const cn = (...cls) => cls.filter(Boolean).join(' ')
 
 /* 
@@ -88,7 +88,7 @@ export default function HeroSection() {
           <div className="max-w-7xl mx-auto px-1 w-full">
             <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
 
-              {/* ── LEFT: copy ─── */}
+              {/*  LEFT: copy ─ */}
               <div className="flex-1 text-center lg:text-left">
 
                 {/* Eyebrow badge */}

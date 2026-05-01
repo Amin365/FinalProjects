@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-/* ─── constants ──────────────────────────────────────────────── */
+/*  constants  */
 
 const STATUS_STYLES = {
   active:    "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -32,17 +32,17 @@ const EMPTY_FORM = {
   teacherId: "", assistants: "", startDate: "", endDate: "", status: "active",
 };
 
-/* ─── helpers ────────────────────────────────────────────────── */
+/*  helpers  */
 
 const fetchPrograms = ({ page, limit }) =>
   api.get("/programs", { params: { page, limit } }).then((r) => r.data);
 
 const fmt = (d) => {
   try { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
-  catch { return "—"; }
+  catch { return ""; }
 };
 
-/* ─── small reusable form field ──────────────────────────────── */
+/*  small reusable form field  */
 
 const Label = ({ children, required }) => (
   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">
@@ -59,7 +59,7 @@ const inputCls =
   "text-slate-800 dark:text-gray-100 placeholder:text-slate-300 dark:placeholder:text-gray-600 " +
   "focus:outline-none focus:ring-2 focus:ring-orange-300 dark:focus:ring-orange-800 focus:border-orange-400 transition-all";
 
-/* ─── main component ─────────────────────────────────────────── */
+/*  main component  */
 
 const ProgramTable = () => {
   const qc = useQueryClient();
@@ -157,7 +157,7 @@ const ProgramTable = () => {
     }
   };
 
-  /* ── render ── */
+  /*  render  */
   return (
     <div className="p-4 md:p-6 flex flex-col gap-5">
 
@@ -259,7 +259,7 @@ const ProgramTable = () => {
         </div>
       </Card>
 
-      {/* ── Create / Edit Modal ──────────────────────────────────── */}
+      {/*  Create / Edit Modal  */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -288,7 +288,7 @@ const ProgramTable = () => {
             <div className="px-6 py-5 overflow-y-auto max-h-[70vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
 
-                {/* Title — full width */}
+                {/* Title  full width */}
                 <FieldWrap className="md:col-span-2">
                   <Label required>Program Title</Label>
                   <input className={inputCls} placeholder="e.g. Advanced Python Bootcamp" value={form.title} onChange={f("title")} />
@@ -398,7 +398,7 @@ const ProgramTable = () => {
         </div>
       )}
 
-      {/* ── Delete Confirm Modal ─────────────────────────────────── */}
+      {/*  Delete Confirm Modal  */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200">

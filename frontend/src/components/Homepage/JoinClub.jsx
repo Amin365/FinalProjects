@@ -23,7 +23,7 @@ const JoinClub = ({ open, onOpenChange }) => {
   const [success, setSuccess] = React.useState(false)
   const [emailExists, setEmailExists] = React.useState(false)
 
-  // 🔍 Check if email already submitted
+  //  Check if email already submitted
   React.useEffect(() => {
     if (formData.email) {
       const submittedEmails =
@@ -38,7 +38,7 @@ const JoinClub = ({ open, onOpenChange }) => {
       return response.data
     },
     onSuccess: (_, variables) => {
-      // ✅ Save email to localStorage
+      //  Save email to localStorage
       const submittedEmails =
         JSON.parse(localStorage.getItem("joinedClubEmails")) || []
 
@@ -49,7 +49,7 @@ const JoinClub = ({ open, onOpenChange }) => {
 
       setSuccess(true)
 
-      // ⏱ Auto-close after 3 seconds
+      //  Auto-close after 3 seconds
       setTimeout(() => {
         setSuccess(false)
         setFormData({ FullName: "", phone: "", email: "" })
@@ -104,7 +104,7 @@ const JoinClub = ({ open, onOpenChange }) => {
               </DialogDescription>
             </DialogHeader>
 
-            {/* ⚠️ Duplicate email warning */}
+            {/*  Duplicate email warning */}
             {emailExists && (
               <div className="mt-3 rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">
                 You have already submitted a request with this email.
@@ -158,7 +158,7 @@ const JoinClub = ({ open, onOpenChange }) => {
             </form>
           </>
         ) : (
-          /* ✅ SUCCESS STATE */
+          /*  SUCCESS STATE */
           <div className="flex flex-col items-center justify-center text-center py-10 space-y-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
               <svg

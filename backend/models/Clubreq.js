@@ -8,6 +8,7 @@ const  ClubreqSchema = new mongoose.Schema({
     status:{type:String,enum:["Pending","Approved","Rejected"],default:"Pending"},
     rejectionReason:{type:String,default:""},
     memberId:{type:mongoose.Schema.Types.ObjectId,ref:"Member",default:null},
+    userId:{type:mongoose.Schema.Types.ObjectId,ref:"User",default:null},
     reviewedBy:{type:mongoose.Schema.Types.ObjectId,ref:"User",default:null},
     reviewedAt:{type:Date,default:null},
 }

@@ -24,17 +24,17 @@ const upload = multer({
 router.post("/programs/:id/enroll", upload.single("attachment"), createEnrollment);
 
 // GET /enrollments
-router.get("/enrollments", getAllEnrollments);
-router.get("/enrollments/:id", getEnrollmentById);
+router.get("/enrollments", protect, getAllEnrollments);
+router.get("/enrollments/:id", protect, getEnrollmentById);
 
 // GET /programs/:id/enrollments  (admin)
-router.get("/programs/:id/enrollments", getEnrollmentsForProgram);
+router.get("/programs/:id/enrollments", protect, getEnrollmentsForProgram);
 
 // GET /users/:userId/enrollments  or GET /me/enrollments (if you set req.user)
 router.get("/users/:userId/enrollments", protect, getEnrollmentsForUser);
 
 // POST /enrollments/:id/cancel
 router.post("/enrollments/:id/cancel", cancelEnrollment);
-router.delete("/enrollments/:id", deleteEnrollment);
+router.delete("/enrollments/:id", protect, deleteEnrollment);
 
 export default router;

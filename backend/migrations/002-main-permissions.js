@@ -8,9 +8,9 @@ import mongoose from 'mongoose';
 
 export const mainPermissions = async () => {
   try {
-    // 
+   
     // Create permission categories
-    // 
+    
     const categoriesData = [
       { name: "General Settings", system: true },
       { name: "Main System", system: true },
@@ -138,7 +138,7 @@ for (const [roleName, permNames] of Object.entries(rolePermissionMap)) {
   }
 }
 
-    console.log("Permissions initialized ✅");
+    console.log("Permissions initialized ");
   } catch (error) {
     console.error("Error initializing permissions:", error);
   }

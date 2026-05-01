@@ -11,9 +11,9 @@ import {
   Check,
 } from "lucide-react";
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    DATA
-══════════════════════════════════════════════════════════════ */
+ */
 /* single brand palette — every card uses these */
 const OR = { accent: "#f97316", accentLight: "#fff7ed", accentMid: "#fed7aa" };
 
@@ -33,9 +33,9 @@ const BADGE_STYLES = {
   full: { bg: "#f8fafc", color: "#94a3b8", border: "#e2e8f0" },
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    ENROLLMENT DIALOG — 4 steps
-══════════════════════════════════════════════════════════════ */
+ */
 
 const STEPS = [
   { id: 1, label: "Registration", icon: User },
@@ -274,7 +274,7 @@ const StepEducation = ({ data, onChange }) => (
   </div>
 );
 
-/* ── Success screen ─────────────────────────────────────────── */
+/*  Success screen  */
 const SuccessScreen = ({ program, onClose }) => (
   <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-5">
     <div
@@ -319,7 +319,7 @@ const SuccessScreen = ({ program, onClose }) => (
   </div>
 );
 
-/* ── Enrollment Dialog ──────────────────────────────────────── */
+/*  Enrollment Dialog  */
 const EMPTY_FORM = {
   firstName: "", lastName: "", email: "", phone: "", dob: "", gender: "",
   educationLevel: "", institution: "", fieldOfStudy: "",
@@ -515,9 +515,9 @@ const EnrollmentDialog = ({ program, onClose }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    CARD COMPONENTS
-══════════════════════════════════════════════════════════════ */
+ */
 
 const Stars = ({ rating }) => (
   <div className="flex gap-0.5">
@@ -662,7 +662,7 @@ const ProgramCard = ({ program, onEnroll }) => {
   );
 };
 
-/* ── Stat ────────────────────────────────────────────────────── */
+/*  Stat  */
 const Stat = ({ icon: Icon, value, label }) => (
   <div className="flex items-center gap-2.5">
     <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center">
@@ -675,9 +675,9 @@ const Stat = ({ icon: Icon, value, label }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    PAGE
-══════════════════════════════════════════════════════════════ */
+ */
 const ProgramsPage = () => {
   const [active, setActive] = useState("all");
   const [animKey, setAnimKey] = useState(0);
