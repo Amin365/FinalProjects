@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSelector } from "react-redux";
 
 const TYPE_ICON = {
   pdf: FileText,
@@ -40,8 +41,8 @@ const ACCESS_STYLES = {
   "program-only": "bg-blue-100 text-blue-700",
 };
 
-const fetchResources = async ({ page, limit }) => {
-  const res = await api.get("/resources", { params: { page, limit } });
+const fetchResources = async ({ page, limit, mine }) => {
+  const res = await api.get("/resources", { params: { page, limit, ...(mine ? { mine: true } : {}) } });
   return res.data;
 };
 
@@ -56,6 +57,18 @@ const getUploaderName = (user) => {
 const ResourceTable = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user: authUser } = useSelector((state) => state.auth);
+
+  const roleName = useMemo(() => {
+    const roleSource = authUser?.role;
+    if (!roleSource) return "";
+    if (typeof roleSource === "object") {
+      return String(roleSource.role || roleSource.name || roleSource.title || "").toLowerCase();
+    }
+    return String(roleSource).toLowerCase();
+  }, [authUser]);
+
+  const mine = /^(volunteer|teacher|library staff)$/.test(roleName);
 
   const [search, setSearch] = useState("");
   const [page] = useState(1);
@@ -65,8 +78,8 @@ const ResourceTable = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ["admin-resources", { page, limit }],
-    queryFn: () => fetchResources({ page, limit }),
+    queryKey: ["admin-resources", { page, limit, mine }],
+    queryFn: () => fetchResources({ page, limit, mine }),
     keepPreviousData: true,
     staleTime: 30_000,
   });

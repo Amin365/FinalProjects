@@ -22,7 +22,7 @@ const getTeacherScopeForRequest = (req) => {
   // If authenticated but no role is present, deny by default
   if (!roleName) return "__deny__";
   if (/super\s*admin/i.test(roleName) || /^admin$/i.test(roleName)) return null;
-  if (roleName === "library staff" || roleName === "teacher") return String(req.user._id);
+  if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") return String(req.user._id);
   return "__deny__";
 };
 
@@ -386,7 +386,9 @@ export const getAllEnrollments = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
     if (teacherScope) {
-      const teacherPrograms = await Program.find({ teacherId: teacherScope }).select("_id").lean();
+      const teacherPrograms = await Program.find({ $or: [{ teacherId: teacherScope }, { assistants: teacherScope }] })
+        .select("_id")
+        .lean();
       filter.programId = { $in: teacherPrograms.map((program) => String(program._id)) };
     }
 
@@ -441,8 +443,8 @@ export const getEnrollmentById = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
     if (teacherScope) {
-      const program = await Program.findById(enrollment.programId).select("teacherId").lean();
-      if (!program || String(program.teacherId) !== teacherScope) {
+      const program = await Program.findById(enrollment.programId).select("teacherId assistants").lean();
+      if (!program || (String(program.teacherId) !== teacherScope && !(Array.isArray(program.assistants) && program.assistants.includes(teacherScope)))) {
         return res.status(403).json({ message: "Forbidden" });
       }
     }

@@ -62,7 +62,7 @@ const getTeacherMap = async (teacherIds) => {
 const getTeacherFilterForRequest = (req) => {
   const roleName = getRequestRoleName(req);
   if (!req.user?._id || !roleName || isAdminRoleName(roleName)) return null;
-  if (roleName === "library staff" || roleName === "teacher") {
+  if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") {
     return String(req.user._id);
   }
   return "__deny__";
@@ -71,10 +71,12 @@ const getTeacherFilterForRequest = (req) => {
 const getTeacherRoleIds = async () => {
   const teacherRoles = await Role.find({
     $or: [
-      { role: { $regex: /^library\s*staff$/i } },
-      { plural: { $regex: /^library\s*staff$/i } },
-      { role: { $regex: /^teacher$/i } },
-      { plural: { $regex: /^teachers?$/i } },
+      // { role: { $regex: /^library\s*staff$/i } },
+      // { plural: { $regex: /^library\s*staff$/i } },
+      // { role: { $regex: /^teacher$/i } },
+      // { plural: { $regex: /^teachers?$/i } },
+      { role: { $regex: /^volunteer$/i } },
+      { plural: { $regex: /^volunteers?$/i } },
     ],
   })
     .select("_id")
@@ -268,7 +270,7 @@ export const getPrograms = async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
     if (teacherScope) {
-      filter.teacherId = teacherScope;
+      filter.$or = [{ teacherId: teacherScope }, { assistants: teacherScope }];
     }
     if (status && ALLOWED_STATUS.includes(status)) filter.status = status;
 
@@ -310,7 +312,10 @@ export const getProgramById = async (req, res) => {
     const program = await Program.findById(id).lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
     const teacherScope = getTeacherFilterForRequest(req);
-    if (teacherScope === "__deny__" || (teacherScope && String(program.teacherId) !== teacherScope)) {
+    if (
+      teacherScope === "__deny__" ||
+      (teacherScope && String(program.teacherId) !== teacherScope && !(Array.isArray(program.assistants) && program.assistants.includes(teacherScope)))
+    ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 

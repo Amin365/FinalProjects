@@ -37,6 +37,9 @@ const EMPTY_FORM = {
 const fetchPrograms = ({ page, limit }) =>
   api.get("/programs", { params: { page, limit } }).then((r) => r.data);
 
+const fetchAvailableTeachers = () =>
+  api.get("/programs/teachers/available").then((r) => r.data);
+
 const fmt = (d) => {
   try { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }); }
   catch { return ""; }
@@ -79,6 +82,14 @@ const ProgramTable = () => {
     queryFn: () => fetchPrograms({ page, limit }),
     staleTime: 30_000,
   });
+
+  const { data: teachersData, isLoading: teachersLoading } = useQuery({
+    queryKey: ["available-teachers"],
+    queryFn: fetchAvailableTeachers,
+    staleTime: 60_000,
+  });
+
+  const teachers = teachersData?.data || [];
 
   const programs = data?.data || [];
 
@@ -297,12 +308,19 @@ const ProgramTable = () => {
                 {/* Teacher */}
                 <FieldWrap>
                   <Label required>Teacher</Label>
-                  <input
+                  <select
                     className={inputCls}
-                    placeholder="Teacher name or identifier"
                     value={form.teacherId}
                     onChange={f("teacherId")}
-                  />
+                    disabled={teachersLoading}
+                  >
+                    <option value="">{teachersLoading ? "Loading teachers…" : "Select a teacher"}</option>
+                    {teachers.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.fullName || t.email || t._id}
+                      </option>
+                    ))}
+                  </select>
                 </FieldWrap>
 
                 {/* Capacity */}

@@ -311,7 +311,7 @@ export default function StudentResources() {
       {/* 
           PAGE HERO HEADER
        */}
-      <div className="relative bg-white dark:bg-gray-900 border-b border-slate-100 dark:border-gray-800 overflow-hidden">
+      <div className="relativeborder-b border-slate-100 dark:border-gray-800 overflow-hidden">
         {/* background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full " />

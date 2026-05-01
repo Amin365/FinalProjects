@@ -1,51 +1,21 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2, XCircle, Clock, Search, X, Save,
   Users, Calendar, BarChart3, BookOpen, ArrowRight,
   AlertCircle, Zap, ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/app/api/apislice";
 
-/* 
-   MOCK DATA — swap with useQuery from your API
- */
-const MOCK_PROGRAMS = [
-  { id: "p1", title: "Full-stack web development",  enrolled: 8,  startDate: "2025-02-01", endDate: "2025-05-30" },
-  { id: "p2", title: "Data science & ML",            enrolled: 4,  startDate: "2025-03-01", endDate: "2025-06-01" },
-  { id: "p3", title: "Digital marketing & growth",   enrolled: 5,  startDate: "2025-01-15", endDate: "2025-04-15" },
-  { id: "p4", title: "UI/UX design fundamentals",    enrolled: 3,  startDate: "2025-04-01", endDate: "2025-06-30" },
-];
-
-const MOCK_STUDENTS = {
-  p1: [
-    { id: "s1",  name: "Amara Diallo",    avatar: "AD", email: "amara@example.com"  },
-    { id: "s2",  name: "Lena Hartmann",   avatar: "LH", email: "lena@example.com"   },
-    { id: "s3",  name: "Carlos Vega",     avatar: "CV", email: "carlos@example.com" },
-    { id: "s4",  name: "Yuki Tanaka",     avatar: "YT", email: "yuki@example.com"   },
-    { id: "s5",  name: "Sofia Mendes",    avatar: "SM", email: "sofia@example.com"  },
-    { id: "s6",  name: "James Osei",      avatar: "JO", email: "james@example.com"  },
-    { id: "s7",  name: "Priya Sharma",    avatar: "PS", email: "priya@example.com"  },
-    { id: "s8",  name: "Marcus Reed",     avatar: "MR", email: "marcus@example.com" },
-  ],
-  p2: [
-    { id: "s9",  name: "Aisha Nkosi",     avatar: "AN", email: "aisha@example.com"  },
-    { id: "s10", name: "Dev Malhotra",    avatar: "DM", email: "dev@example.com"    },
-    { id: "s11", name: "Fatima Hassan",   avatar: "FH", email: "fatima@example.com" },
-    { id: "s12", name: "Leo Braun",       avatar: "LB", email: "leo@example.com"    },
-  ],
-  p3: [
-    { id: "s13", name: "Maria Santos",    avatar: "MS", email: "maria@example.com"  },
-    { id: "s14", name: "Kenji Watanabe",  avatar: "KW", email: "kenji@example.com"  },
-    { id: "s15", name: "Nia Walker",      avatar: "NW", email: "nia@example.com"    },
-    { id: "s16", name: "Ethan Cole",      avatar: "EC", email: "ethan@example.com"  },
-    { id: "s17", name: "Layla Ahmed",     avatar: "LA", email: "layla@example.com"  },
-  ],
-  p4: [
-    { id: "s18", name: "Chloe Martin",    avatar: "CM", email: "chloe@example.com"  },
-    { id: "s19", name: "Omar Farsi",      avatar: "OF", email: "omar@example.com"   },
-    { id: "s20", name: "Ingrid Svensson", avatar: "IS", email: "ingrid@example.com" },
-  ],
-};
+const getInitials = (name = "") =>
+  String(name)
+    .split(" ")
+    .map((part) => part?.[0])
+    .filter(Boolean)
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
 /* 
    CONSTANTS
@@ -58,7 +28,12 @@ const STATUS = {
 };
 
 const today    = new Date().toISOString().slice(0, 10);
-const fmtDate  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const fmtDate  = (d) => {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 const fmtShort = (d) => new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" });
 
 /* 
@@ -99,7 +74,7 @@ const ProgramCard = ({ program, selected, onClick, rate }) => (
           {program.title}
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-          <Users size={9} /> {program.enrolled} students
+          <Users size={9} /> {program.capacity ? `${program.capacity} capacity` : "Capacity —"}
         </p>
       </div>
       {rate !== null && (
@@ -115,56 +90,150 @@ const ProgramCard = ({ program, selected, onClick, rate }) => (
    MAIN PAGE
  */
 export default function AttendancePage() {
+  const qc = useQueryClient();
   const [selected,  setSelected]  = useState(null);
   const [date,      setDate]      = useState(today);
   const [search,    setSearch]    = useState("");
   const [records,   setRecords]   = useState({});
-  const [saving,    setSaving]    = useState(false);
   const [view,      setView]      = useState("mark");
 
-  const programs = MOCK_PROGRAMS;
-  const students = selected ? (MOCK_STUDENTS[selected] || []) : [];
-  const prog     = programs.find(p => p.id === selected);
+  const programsQuery = useQuery({
+    queryKey: ["attendance-programs"],
+    queryFn: async () => {
+      const res = await api.get("/attendance/programs");
+      return res.data?.data || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const programs = programsQuery.data || [];
+
+  const detailQuery = useQuery({
+    queryKey: ["attendance-program-detail", { programId: selected, date }],
+    enabled: Boolean(selected && date),
+    queryFn: async () => {
+      const res = await api.get(`/attendance/programs/${selected}`, { params: { date } });
+      return res.data?.data || null;
+    },
+    staleTime: 10_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const prog = detailQuery.data?.program || programs.find((p) => String(p._id) === String(selected));
+  const students = detailQuery.data?.students || [];
+  const attendance = detailQuery.data?.attendance || null;
+
+  useEffect(() => {
+    if (!selected || !date) return;
+
+    const serverRecords = Array.isArray(attendance?.records) ? attendance.records : [];
+    const byStudentId = {};
+    serverRecords.forEach((r) => {
+      if (!r?.studentId) return;
+      byStudentId[String(r.studentId)] = r.status || "absent";
+    });
+
+    setRecords((prev) => {
+      const next = { ...prev };
+      next[selected] = { ...(next[selected] || {}) };
+      next[selected][date] = { ...byStudentId };
+      return next;
+    });
+  }, [attendance, selected, date]);
 
   /* helpers */
-  const getStatus = (sid)       => records?.[selected]?.[date]?.[sid] || "absent";
-  const setStatus = (sid, val)  => setRecords(p => ({ ...p, [selected]: { ...(p[selected] || {}), [date]: { ...(p[selected]?.[date] || {}), [sid]: val } } }));
-  const markAll   = (val)       => { const u = {}; students.forEach(s => u[s.id] = val); setRecords(p => ({ ...p, [selected]: { ...(p[selected] || {}), [date]: { ...(p[selected]?.[date] || {}), ...u } } })); };
+  const getStatus = (sid) => records?.[selected]?.[date]?.[sid] || "absent";
+  const setStatus = (sid, val) =>
+    setRecords((p) => ({
+      ...p,
+      [selected]: {
+        ...(p[selected] || {}),
+        [date]: { ...(p[selected]?.[date] || {}), [sid]: val },
+      },
+    }));
+
+  const markAll = (val) => {
+    const u = {};
+    students.forEach((s) => {
+      const sid = String(s.studentId || s.id);
+      u[sid] = val;
+    });
+    setRecords((p) => ({
+      ...p,
+      [selected]: {
+        ...(p[selected] || {}),
+        [date]: { ...(p[selected]?.[date] || {}), ...u },
+      },
+    }));
+  };
 
   /* summary */
   const summary = useMemo(() => {
     if (!selected) return null;
     const rec = records?.[selected]?.[date] || {};
     const c = { present: 0, absent: 0, late: 0, excused: 0 };
-    students.forEach(s => { c[rec[s.id] || "absent"]++; });
+    students.forEach((s) => {
+      const sid = String(s.studentId || s.id);
+      c[rec[sid] || "absent"]++;
+    });
     return { ...c, total: students.length };
   }, [records, selected, date, students]);
 
-  /* rate per program for sidebar */
-  const progRate = (pid) => {
-    const rec = records?.[pid]?.[today] || {};
-    const s = MOCK_STUDENTS[pid] || [];
-    if (!s.length) return null;
-    return Math.round((s.filter(x => rec[x.id] === "present").length / s.length) * 100);
-  };
+  const progRate = () => null;
 
   /* filtered */
   const filtered = useMemo(() =>
-    students.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase())),
+    students.filter((s) => {
+      if (!search) return true;
+      const needle = search.toLowerCase();
+      return (
+        String(s.name || "").toLowerCase().includes(needle) ||
+        String(s.email || "").toLowerCase().includes(needle)
+      );
+    }),
     [students, search]
   );
 
-  /* history */
-  const history = useMemo(() => Object.keys(records[selected] || {}).sort((a, b) => b.localeCompare(a)), [records, selected]);
+  const historyQuery = useQuery({
+    queryKey: ["attendance-history", { programId: selected }],
+    enabled: Boolean(selected),
+    queryFn: async () => {
+      const res = await api.get(`/attendance/programs/${selected}/history`);
+      return res.data?.data || [];
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
-  /* save */
-  const save = async () => {
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 800));
-    // replace with: await api.post(`/programs/${selected}/attendance`, { date, records: records[selected][date] });
-    toast.success(`Attendance saved — ${fmtShort(date)}`);
-    setSaving(false);
-  };
+  const history = historyQuery.data || [];
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const perStudent = records?.[selected]?.[date] || {};
+      const payloadRecords = students.map((s) => {
+        const sid = String(s.studentId || s.id);
+        return {
+          studentId: sid,
+          status: perStudent[sid] || "absent",
+          name: s.name || "",
+          email: s.email || "",
+        };
+      });
+      const res = await api.post(`/attendance/programs/${selected}`, {
+        date,
+        records: payloadRecords,
+      });
+      return res.data?.data;
+    },
+    onSuccess: () => {
+      toast.success(`Attendance saved — ${fmtShort(date)}`);
+      qc.invalidateQueries({ queryKey: ["attendance-program-detail"] });
+      qc.invalidateQueries({ queryKey: ["attendance-history"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to save attendance");
+    },
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-950 pb-20">
@@ -186,7 +255,7 @@ export default function AttendancePage() {
             <div className="flex gap-5 shrink-0">
               {[
                 { icon: BookOpen, value: programs.length,                           label: "Programmes"     },
-                { icon: Users,    value: Object.values(MOCK_STUDENTS).flat().length, label: "Total students" },
+                { icon: Users,    value: "—", label: "Total students" },
               ].map(({ icon: Icon, value, label }) => (
                 <div key={label} className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 flex items-center justify-center">
@@ -212,8 +281,8 @@ export default function AttendancePage() {
             <p className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Programmes</p>
             <div className="flex flex-col gap-3">
               {programs.map(p => (
-                <ProgramCard key={p.id} program={p} selected={selected === p.id} rate={progRate(p.id)}
-                  onClick={() => { setSelected(p.id); setView("mark"); setSearch(""); }} />
+                <ProgramCard key={p._id} program={p} selected={String(selected) === String(p._id)} rate={progRate(p._id)}
+                  onClick={() => { setSelected(String(p._id)); setView("mark"); setSearch(""); }} />
               ))}
             </div>
           </aside>
@@ -316,21 +385,23 @@ export default function AttendancePage() {
                     </div>
                     {filtered.length === 0 ? (
                       <div className="py-10 text-center text-[13px] text-slate-400">No students match your search.</div>
-                    ) : filtered.map((s, i) => (
-                      <div key={s.id}
+                    ) : filtered.map((s, i) => {
+                      const sid = String(s.studentId || s.id);
+                      return (
+                      <div key={sid}
                         className={`grid grid-cols-[1fr_auto] items-center px-5 py-3.5 border-b border-slate-50 dark:border-gray-800/60 last:border-0 ${i % 2 !== 0 ? "bg-slate-50/40 dark:bg-gray-800/20" : ""}`}>
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-[11px] font-extrabold text-white shadow-sm shrink-0">
-                            {s.avatar}
+                          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-orange-400 to-amber-500 flex items-center justify-center text-[11px] font-extrabold text-white shadow-sm shrink-0">
+                            {getInitials(s.name)}
                           </div>
                           <div className="min-w-0">
                             <p className="text-[13.5px] font-bold text-slate-900 dark:text-white truncate">{s.name}</p>
                             <p className="text-[11.5px] text-slate-400 dark:text-slate-500 truncate">{s.email}</p>
                           </div>
                         </div>
-                        <StatusToggle value={getStatus(s.id)} onChange={v => setStatus(s.id, v)} />
+                        <StatusToggle value={getStatus(sid)} onChange={v => setStatus(sid, v)} />
                       </div>
-                    ))}
+                    );})}
                   </div>
 
                   {/* Save bar */}
@@ -344,9 +415,9 @@ export default function AttendancePage() {
                         <span className="font-semibold">{students.length} total</span>
                       </>}
                     </div>
-                    <button onClick={save} disabled={saving}
+                    <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
                       className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-extrabold shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60">
-                      {saving
+                      {saveMutation.isPending
                         ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
                         : <><Save size={14} />Save attendance</>}
                     </button>
@@ -369,11 +440,17 @@ export default function AttendancePage() {
                         <AlertCircle size={28} className="text-slate-200 dark:text-slate-700 mx-auto mb-3" />
                         <p className="text-[13px] text-slate-400">No attendance records yet for this programme.</p>
                       </div>
-                    ) : history.map(d => {
-                      const rec = records[selected][d] || {};
+                    ) : history.map((h) => {
+                      const d = String(h.date);
+                      const recs = Array.isArray(h.records) ? h.records : [];
                       const c = { present: 0, absent: 0, late: 0, excused: 0 };
-                      students.forEach(s => c[rec[s.id] || "absent"]++);
-                      const rate = Math.round((c.present / Math.max(students.length, 1)) * 100);
+                      recs.forEach((r) => {
+                        const st = r?.status;
+                        if (st && c[st] !== undefined) c[st] += 1;
+                        else c.absent += 1;
+                      });
+                      const total = recs.length;
+                      const rate = Math.round((c.present / Math.max(total, 1)) * 100);
                       return (
                         <div key={d} onClick={() => { setDate(d); setView("mark"); }}
                           className="px-6 py-4 flex items-center gap-5 border-b border-slate-50 dark:border-gray-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-gray-800/30 cursor-pointer group transition-colors">

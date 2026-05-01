@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import api from "@/app/api/apislice";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router";
+import HeroHeader from '../Homepage/HeroSections';
+
 import {
   Clock, Users, Star, BookOpen, ChevronRight, ChevronLeft,
   Sparkles, TrendingUp, Globe, Flame, X,
@@ -370,6 +372,7 @@ const ConfirmEnrollDialog = ({ program, onClose }) => {
       setEnrollStatus(data?.data?.status || null);
       queryClient.invalidateQueries({ queryKey: ["public-programs"] });
       queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["my-enrollments"] });
       setDone(true);
     },
     onError: (err) => {
@@ -507,6 +510,7 @@ const EnrollmentDialog = ({ program, onClose }) => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["public-programs"] });
       queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["my-enrollments"] });
       setEnrollStatus(data?.data?.status || null);
       setDone(true);
     },
@@ -724,11 +728,12 @@ const CapacityBar = ({ enrolled, capacity }) => {
   );
 };
 
-const ProgramCard = ({ program, onEnroll }) => {
+const ProgramCard = ({ program, onEnroll, alreadyEnrolled = false, hideEnrollAction = false }) => {
   const [flipped, setFlipped] = useState(false);
   const Icon = program.icon;
   const isFull = program.status === "full";
   const bs = BADGE_STYLES[program.badge];
+  const enrollDisabled = hideEnrollAction || isFull || alreadyEnrolled;
 
   return (
     <div
@@ -828,12 +833,17 @@ const ProgramCard = ({ program, onEnroll }) => {
               </div>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); onEnroll(program); }}
-              className="w-full py-3.5 rounded-2xl font-extrabold text-[14px] flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] hover:opacity-90"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (enrollDisabled) return;
+                onEnroll(program);
+              }}
+              disabled={enrollDisabled}
+              className="w-full py-3.5 rounded-2xl font-extrabold text-[14px] flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: "white", color: program.accent }}
             >
-              Enroll for free
-              <ChevronRight size={16} />
+              {hideEnrollAction ? "Assigned program" : alreadyEnrolled ? "Already enrolled" : "Enroll for free"}
+              {!hideEnrollAction && !alreadyEnrolled && <ChevronRight size={16} />}
             </button>
           </div>
         </div>
@@ -860,6 +870,8 @@ const Stat = ({ icon: Icon, value, label }) => (
  */
 const ProgramsPage = () => {
   const location = useLocation();
+  const { token } = useSelector((state) => state.auth);
+  const { user: authUser } = useSelector((state) => state.auth);
   const [active, setActive] = useState("all");
   const [animKey, setAnimKey] = useState(0);
   const [visible, setVisible] = useState([]);
@@ -867,11 +879,57 @@ const ProgramsPage = () => {
 
   const isDashboardProgrammeCards = location?.pathname?.startsWith("/dashboard/programmecards");
 
+  const roleName = useMemo(() => {
+    const roleSource = authUser?.role;
+    if (!roleSource) return "";
+    if (typeof roleSource === "object") {
+      return String(roleSource.role || roleSource.name || roleSource.title || "").toLowerCase();
+    }
+    return String(roleSource).toLowerCase();
+  }, [authUser]);
+
+  const isInstructorDashboard = isDashboardProgrammeCards && /^(volunteer|teacher|library staff)$/.test(roleName);
+
   const { data: programs = [], isLoading } = useQuery({
-    queryKey: ["public-programs"],
-    queryFn: fetchPrograms,
+    queryKey: ["public-programs", { mine: isInstructorDashboard }],
+    queryFn: async () => {
+      const res = await api.get("/programs", {
+        params: {
+          page: 1,
+          limit: 200,
+          ...(isInstructorDashboard ? { mine: true } : {}),
+        },
+      });
+      const raw = res.data?.data || [];
+      const sorted = [...raw].sort((a, b) => {
+        const aTime = new Date(a?.createdAt || a?.startDate || 0).getTime() || 0;
+        const bTime = new Date(b?.createdAt || b?.startDate || 0).getTime() || 0;
+        return bTime - aTime;
+      });
+      return sorted.map(mapProgramToCard);
+    },
     staleTime: 30_000,
   });
+
+  const { data: myEnrollmentsData } = useQuery({
+    queryKey: ["my-enrollments", token],
+    queryFn: async () => {
+      const res = await api.get("/users/me/enrollments");
+      return res.data;
+    },
+    enabled: Boolean(token),
+    staleTime: 30_000,
+  });
+
+  const enrolledProgramIds = useMemo(() => {
+    const items = myEnrollmentsData?.data || [];
+    const relevant = new Set(
+      items
+        .filter((e) => ["pending", "confirmed", "waitlisted"].includes(String(e?.status || "")))
+        .map((e) => String(e?.programId))
+    );
+    return relevant;
+  }, [myEnrollmentsData]);
 
   useEffect(() => {
     const nextVisible = active === "all" ? programs : programs.filter(p => p.category === active);
@@ -885,10 +943,21 @@ const ProgramsPage = () => {
   }, [active, programs]);
 
   const activeLearners = programs.reduce((sum, program) => sum + Number(program.enrolled || 0), 0);
+  const hideHero = isDashboardProgrammeCards;
 
   return (
     <div className="min-h-screen px-4 pt-16 pb-20 bg-slate-50 dark:bg-gray-950">
       <div className="max-w-6xl mx-auto">
+
+       {!hideHero && (
+              <div className="mb-32">
+                <HeroHeader />
+              </div>
+            )}
+
+    
+          
+
 
         <div className="mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 text-orange-500 dark:text-orange-300 text-[12px] font-bold mb-6">
@@ -915,10 +984,10 @@ const ProgramsPage = () => {
               <Stat icon={Flame} value={String(programs.length)} label="Programs now" />
             </div>
           </div>
-          <div className="mt-10 h-px bg-linear-to-r from-orange-200 via-slate-100 to-transparent" />
+          {/* <div className="mt-10 h-px bg-linear-to-r from-orange-200 via-slate-100 to-transparent" /> */}
         </div>
 
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+        <div className="flex  items-center justify-between mb-8 flex-wrap gap-3">
           <div className="flex gap-2 flex-wrap">
             {FILTERS.map(({ key, label }) => (
               <button key={key} onClick={() => setActive(key)}
@@ -940,7 +1009,12 @@ const ProgramsPage = () => {
           <div key={animKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {visible.map((p, i) => (
               <div key={p.id} className="animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}>
-                <ProgramCard program={p} onEnroll={setEnrollTarget} />
+                <ProgramCard
+                  program={p}
+                  onEnroll={setEnrollTarget}
+                  alreadyEnrolled={enrolledProgramIds.has(String(p.id))}
+                  hideEnrollAction={isInstructorDashboard}
+                />
               </div>
             ))}
           </div>

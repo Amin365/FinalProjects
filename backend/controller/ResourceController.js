@@ -17,13 +17,16 @@ const isTeacher = async (userId) => {
   const user = await User.findById(userId).populate("role", "role plural").lean();
   if (!user) return false;
   const roleName = (user.role?.role || user.role?.plural || "").toLowerCase();
-  return /^library\s*staff$/i.test(roleName) || /^teacher$/i.test(roleName);
+  return /^library\s*staff$/i.test(roleName) || /^teacher$/i.test(roleName) || /^volunteer$/i.test(roleName);
 };
 
 const canManageProgramResource = async (userId, programId) => {
   if (!programId) return false;
-  const program = await mongoose.model("Program").findById(programId).select("teacherId").lean();
-  return Boolean(program && String(program.teacherId) === String(userId));
+  const program = await mongoose.model("Program").findById(programId).select("teacherId assistants").lean();
+  return Boolean(
+    program &&
+      (String(program.teacherId) === String(userId) || (Array.isArray(program.assistants) && program.assistants.includes(String(userId))))
+  );
 };
 
 const getUploadedFile = (file) => file?.path || file?.secure_url || file?.url || "";
@@ -103,7 +106,14 @@ export const getResources = async (req, res) => {
     if (mine === "true") {
       const userId = req.user?._id;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const teacherPrograms = await mongoose.model("Program").find({ teacherId: String(userId) }).select("_id").lean();
+      const teacherPrograms = await mongoose
+        .model("Program")
+        .find({ $or: [{ teacherId: String(userId) }, { assistants: String(userId) }] })
+        .select("_id")
+        .lean();
+
+      // volunteer/teacher view: only show resources they uploaded, and only within programs assigned to them
+      filter.uploadedBy = userId;
       filter.programId = { $in: teacherPrograms.map((program) => String(program._id)) };
     }
 

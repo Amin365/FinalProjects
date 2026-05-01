@@ -18,7 +18,10 @@ const ensureProgramAccess = async (userId, programId) => {
   if (/super\s*admin/i.test(roleName) || /^admin$/i.test(roleName)) {
     return { allowed: true, program };
   }
-  if ((roleName === "library staff" || roleName === "teacher") && String(program.teacherId) === String(userId)) {
+  if (
+    (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") &&
+    (String(program.teacherId) === String(userId) || (Array.isArray(program.assistants) && program.assistants.includes(String(userId))))
+  ) {
     return { allowed: true, program };
   }
   return { allowed: false, reason: "Forbidden", status: 403 };
@@ -27,7 +30,7 @@ const ensureProgramAccess = async (userId, programId) => {
 const buildStudentList = async (programId) => {
   const enrollments = await Enrollment.find({
     programId: String(programId),
-    status: { $in: ["confirmed", "waitlisted"] },
+    status: { $in: ["confirmed"] },
   })
     .sort({ createdAt: 1 })
     .lean();
@@ -51,8 +54,8 @@ export const getAttendancePrograms = async (req, res) => {
 
     const roleName = await getRoleName(userId);
     const filter = {};
-    if (roleName === "library staff" || roleName === "teacher") {
-      filter.teacherId = String(userId);
+    if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") {
+      filter.$or = [{ teacherId: String(userId) }, { assistants: String(userId) }];
     }
 
     const programs = await Program.find(filter).sort({ createdAt: -1 }).lean();

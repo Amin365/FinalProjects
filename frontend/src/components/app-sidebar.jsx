@@ -43,7 +43,7 @@ const NAV_ITEMS = [
   { title: "Volunteer Management", url: "/dashboard/join-clubs", icon: ActivityIcon },
   { title: "Enrollments", url: "/dashboard/enrollments", icon: User },
   { title: "Attendance", url: "/dashboard/attendance", icon: ClipboardList },
-   { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn },
+  { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn },
   { title: "Resources", url: "/dashboard/studentsresources", icon: Trophy },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Notification Settings", url: "/dashboard/notification-settings", icon: Settings },
@@ -142,7 +142,13 @@ export function AppSidebar(props) {
     if (!visibleRoutes) {
       return NAV_ITEMS;
     }
-    return NAV_ITEMS.filter((item) => visibleRoutes.has(item.url));
+    const items = NAV_ITEMS.filter((item) => visibleRoutes.has(item.url));
+    if (roleName === "volunteer") {
+      return items.map((item) =>
+        item.url === "/dashboard/programmecards" ? { ...item, title: "My Programs" } : item
+      );
+    }
+    return items;
   }, [roleName]);
 
   return (

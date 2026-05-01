@@ -1,6 +1,6 @@
 
 import { Router } from "express";
-import { protect } from "../middleware/auth.js";
+import { protect, optionalProtect } from "../middleware/auth.js";
 import {
   createProgram,
   getAvailableTeachers,
@@ -13,7 +13,7 @@ import {
 const Programrouter = Router();
 
 Programrouter.get("/teachers/available", protect, getAvailableTeachers);
-Programrouter.get("/", getPrograms);
+Programrouter.get("/", optionalProtect, getPrograms);
 Programrouter.get("/:id", getProgramById);
 Programrouter.post("/", protect, createProgram);
 Programrouter.put("/:id", protect, updateProgram);

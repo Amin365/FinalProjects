@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { protect } from "../middleware/auth.js";
+import { protect, optionalProtect } from "../middleware/auth.js";
 import { apiLimiter } from "../utility/rateLimiter.js";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -43,7 +43,7 @@ const uploadFields = upload.fields([
 ]);
 
 // Public endpoints
-ResourceRouter.get("/resources", getResources);
+ResourceRouter.get("/resources", optionalProtect, getResources);
 ResourceRouter.get("/resources/types/summary", getResourceTypeSummary);
 ResourceRouter.get("/resources/:id", getResourceById);
 ResourceRouter.post("/resources/:id/views", incrementResourceViews);

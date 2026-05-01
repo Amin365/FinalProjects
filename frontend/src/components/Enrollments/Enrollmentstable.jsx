@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useSelector } from "react-redux";
 
-const fetchEnrollments = async ({ page, limit }) => {
-  const response = await api.get("/enrollments", { params: { page, limit } });
+const fetchEnrollments = async ({ page, limit, mine }) => {
+  const response = await api.get("/enrollments", {
+    params: { page, limit, ...(mine ? { mine: true } : {}) },
+  });
   return response.data;
 };
 
@@ -41,14 +44,26 @@ const STATUS_CLASSES = {
 const EnrollmentsTable = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user: authUser } = useSelector((state) => state.auth);
   const [search, setSearch] = useState("");
   const [page] = useState(1);
   const [limit] = useState(50);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  const roleName = useMemo(() => {
+    const roleSource = authUser?.role;
+    if (!roleSource) return "";
+    if (typeof roleSource === "object") {
+      return String(roleSource.role || roleSource.name || roleSource.title || "").toLowerCase();
+    }
+    return String(roleSource).toLowerCase();
+  }, [authUser]);
+
+  const mine = /^(volunteer|teacher|library staff)$/.test(roleName);
+
   const { data, isLoading, error, isFetching, refetch } = useQuery({
-    queryKey: ["admin-enrollments", { page, limit }],
-    queryFn: () => fetchEnrollments({ page, limit }),
+    queryKey: ["admin-enrollments", { page, limit, mine }],
+    queryFn: () => fetchEnrollments({ page, limit, mine }),
     staleTime: 30_000,
   });
 

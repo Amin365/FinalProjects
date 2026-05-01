@@ -12,6 +12,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import api from "@/app/api/apislice";
+import FilePreview from "@/components/ExtraComponents/FilePreview";
 
 const ResourceDetail = () => {
   const { id } = useParams();
@@ -43,6 +44,40 @@ const ResourceDetail = () => {
     const mb = bytes / 1024 / 1024;
     return mb < 1 ? `${(bytes / 1024).toFixed(0)} KB` : `${mb.toFixed(1)} MB`;
   };
+
+  const previewFile = React.useMemo(() => {
+    const url = resource?.fileUrl;
+    if (!url) return null;
+
+    const rType = String(resource?.type || "").toLowerCase();
+    const mimetype =
+      rType === "pdf"
+        ? "application/pdf"
+        : rType === "doc"
+          ? "application/msword"
+          : rType === "docx"
+            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            : rType === "xls"
+              ? "application/vnd.ms-excel"
+              : rType === "xlsx"
+                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                : rType === "ppt"
+                  ? "application/vnd.ms-powerpoint"
+                  : rType === "pptx"
+                    ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    : rType === "video"
+                      ? "video/mp4"
+                      : rType === "link"
+                        ? "text/uri-list"
+                        : "application/octet-stream";
+
+    const fallbackName = String(url).split("/").pop() || "resource";
+    return {
+      filepath: url,
+      filename: resource?.title || fallbackName,
+      mimetype,
+    };
+  }, [resource]);
 
   if (isLoading)
     return (
@@ -111,14 +146,22 @@ const ResourceDetail = () => {
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => window.open(resource.fileUrl, "_blank")}
-            className="flex items-center gap-2 border px-4 py-2 rounded-md text-sm hover:bg-gray-100"
-          >
-            <Eye size={14} /> Preview
-          </button>
+          {previewFile ? (
+            <FilePreview file={previewFile} selectedIndex={0} allFiles={[previewFile]}>
+              <button
+                type="button"
+                className="flex items-center gap-2 border px-4 py-2 rounded-md text-sm hover:bg-gray-100"
+              >
+                <Eye size={14} /> Preview
+              </button>
+            </FilePreview>
+          ) : null}
 
-          <button className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600">
+          <button
+            type="button"
+            onClick={() => window.open(resource.fileUrl, "_blank", "noopener,noreferrer")}
+            className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600"
+          >
             <Download size={14} /> Download
           </button>
         </div>

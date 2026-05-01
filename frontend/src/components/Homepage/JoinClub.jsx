@@ -10,9 +10,9 @@ import {
   X, Loader2, Sparkles, Building2, Users,
 } from "lucide-react";
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    CONSTANTS
-══════════════════════════════════════════════════════════════ */
+ */
 const STEPS = [
   { id: 1, label: "Personal",   icon: User         },
   { id: 2, label: "Education",  icon: GraduationCap },
@@ -46,9 +46,9 @@ const AVAILABILITY = [
   "Fully flexible",
 ];
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    SMALL HELPERS
-══════════════════════════════════════════════════════════════ */
+ */
 const inputCls =
   "w-full px-4 py-3 rounded-xl text-[13.5px] bg-slate-50 dark:bg-gray-800 " +
   "border border-slate-200 dark:border-gray-700 text-slate-800 dark:text-gray-100 " +
@@ -69,7 +69,7 @@ const FieldBox = ({ label, req, children }) => (
   </div>
 );
 
-/* ── Step 1: Personal Info ──────────────────────────────────── */
+/*  Step 1: Personal Info ─ */
 const Step1 = ({ data, set, disabled }) => (
   <div className="flex flex-col gap-4">
     <FieldBox label="Full name" req>
@@ -115,7 +115,7 @@ const Step1 = ({ data, set, disabled }) => (
   </div>
 );
 
-/* ── Step 2: Education Background ───────────────────────────── */
+/*  Step 2: Education Background ─ */
 const Step2 = ({ data, set }) => (
   <div className="flex flex-col gap-5">
     <FieldBox label="Highest education level" req>
@@ -158,7 +158,7 @@ const Step2 = ({ data, set }) => (
   </div>
 );
 
-/* ── Step 3: Motivation & Readiness ─────────────────────────── */
+/*  Step 3: Motivation & Readiness ─ */
 const Step3 = ({ data, set }) => {
   const toggleArea = (area) => {
     const arr = data.teachAreas || [];
@@ -242,9 +242,9 @@ const Step3 = ({ data, set }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    SUCCESS SCREEN
-══════════════════════════════════════════════════════════════ */
+ */
 const SuccessScreen = ({ name }) => (
   <div className="flex flex-col items-center py-10 px-6 text-center gap-5">
     <div className="w-20 h-20 rounded-full bg-orange-500 flex items-center justify-center shadow-xl shadow-orange-200 dark:shadow-orange-900/30">
@@ -272,9 +272,9 @@ const SuccessScreen = ({ name }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    MAIN COMPONENT
-══════════════════════════════════════════════════════════════ */
+ */
 const EMPTY = {
   FullName: "", phone: "", email: "",
   education_level: "", institution: "",
@@ -361,7 +361,7 @@ const JoinClub = ({ open, onOpenChange }) => {
           <SuccessScreen name={form.FullName} />
         ) : (
           <>
-            {/* ── Dialog header ─────────────────────────── */}
+            {/*  Dialog header ─ */}
             <div className="px-7 pt-7 pb-0">
               {/* top row */}
               <div className="flex items-start justify-between mb-5">
@@ -430,7 +430,7 @@ const JoinClub = ({ open, onOpenChange }) => {
               </div>
             </div>
 
-            {/* ── Scrollable body ───────────────────────── */}
+            {/*  Scrollable body ─ */}
             <div className="px-7 pb-2 overflow-y-auto max-h-[55vh]">
               {/* Duplicate email warning */}
               {emailExists && step === 1 && (
@@ -453,14 +453,14 @@ const JoinClub = ({ open, onOpenChange }) => {
               {step === 3 && <Step3 data={form} set={set} />}
             </div>
 
-            {/* ── Error ─────────────────────────────────── */}
+            {/*  Error  */}
             {error && (
               <div className="mx-7 mb-1 px-4 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/40 text-[12px] font-semibold text-red-600 dark:text-red-400">
                 {error}
               </div>
             )}
 
-            {/* ── Footer nav ───────────────────────────── */}
+            {/*  Footer nav ─ */}
             <div className="px-7 py-5 border-t border-slate-100 dark:border-gray-800 flex items-center justify-between gap-3 bg-slate-50/60 dark:bg-gray-900/40">
               {step > 1 ? (
                 <button type="button" onClick={prev}
