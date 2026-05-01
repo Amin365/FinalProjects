@@ -10,7 +10,6 @@ export const systemRoles = async () => {
       { role: "Admin", plural: "Admins", system: true, color: "#6366f1" },
       { role: "Library Staff", plural: "Library Staff", system: true, color: "#4f46e5", parent: null },
       { role: "Student", plural: "Students", system: true, color: "#10b981", parent: null },
-     
       { role: "Volunteer", plural: "Volunteer", system: true, color: "#10b971", parent: null },
      
 

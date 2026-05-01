@@ -5,6 +5,11 @@ const  ClubreqSchema = new mongoose.Schema({
     FullName:{type:String,required:true,trim:true},
     email:{type:String,required:true,trim:true},
     phone:{type:String,required:true},
+    education_level:{type:String,required:true,trim:true},
+    institution:{type:String,required:true,trim:true},
+    
+
+
     status:{type:String,enum:["Pending","Approved","Rejected"],default:"Pending"},
     rejectionReason:{type:String,default:""},
     memberId:{type:mongoose.Schema.Types.ObjectId,ref:"Member",default:null},

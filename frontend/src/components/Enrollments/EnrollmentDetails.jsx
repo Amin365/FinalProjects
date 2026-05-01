@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api/apislice";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   BookOpen,
@@ -17,6 +18,8 @@ import {
   User,
   Briefcase,
   BookMarked,
+  Check,
+  X,
 } from "lucide-react";
 
 const Card = ({ children, className = "" }) => (
@@ -48,6 +51,7 @@ const Field = ({ label, value }) => (
 export default function EnrollmentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
 
   const { data, isLoading, isError } = useQuery({
@@ -86,6 +90,36 @@ export default function EnrollmentDetails() {
     return <div className="p-6 text-red-500">Failed to load enrollment details.</div>;
   }
 
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/enrollments/${id}/approve`);
+      return res.data;
+    },
+    onSuccess: async () => {
+      toast.success("Enrollment approved");
+      await queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      await queryClient.invalidateQueries({ queryKey: ["enrollment", id] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to approve enrollment");
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/enrollments/${id}/reject`);
+      return res.data;
+    },
+    onSuccess: async () => {
+      toast.success("Enrollment rejected");
+      await queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      await queryClient.invalidateQueries({ queryKey: ["enrollment", id] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to reject enrollment");
+    },
+  });
+
   return (
     <div className="min-h-screen bg-slate-50/50 p-4 md:p-6">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -97,7 +131,7 @@ export default function EnrollmentDetails() {
         </button>
 
         <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-500 to-orange-400 px-6 py-6 text-white">
+          <div className="bg-linear-to-r from-orange-500 to-orange-400 px-6 py-6 text-white">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/70">Enrollment Details</p>
@@ -106,7 +140,32 @@ export default function EnrollmentDetails() {
                   {program?.title || "Program"} · submitted on {formatDate(enrollment.createdAt)}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {enrollment.status === "pending" && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => approveMutation.mutate()}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-60"
+                      title="Approve"
+                    >
+                      <Check size={16} /> Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ok = window.confirm("Reject this enrollment request?");
+                        if (ok) rejectMutation.mutate();
+                      }}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-60"
+                      title="Reject"
+                    >
+                      <X size={16} /> Reject
+                    </button>
+                  </div>
+                )}
                 <Pill icon={CheckCircle2} label={enrollment.status} />
                 <Pill icon={BookOpen} label={program?.title || "Program"} />
                 <Pill icon={Clock} label={formatDate(enrollment.createdAt)} />

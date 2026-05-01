@@ -3,6 +3,8 @@ import express from "express";
 import multer from "multer";
 import {
   createEnrollment,
+  approveEnrollment,
+  rejectEnrollment,
   deleteEnrollment,
   getAllEnrollments,
   getEnrollmentById,
@@ -10,7 +12,7 @@ import {
   getEnrollmentsForUser,
   cancelEnrollment,
 } from "../controller/enrollmentController.js";
-import { protect } from "../middleware/auth.js";
+import { protect, optionalProtect } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -21,11 +23,16 @@ const upload = multer({
 });
 
 // POST /programs/:id/enroll  (multipart/form-data, optional file field "attachment")
-router.post("/programs/:id/enroll", upload.single("attachment"), createEnrollment);
+// Public route, but will attach req.user if Authorization token is provided.
+router.post("/programs/:id/enroll", optionalProtect, upload.single("attachment"), createEnrollment);
 
 // GET /enrollments
 router.get("/enrollments", protect, getAllEnrollments);
 router.get("/enrollments/:id", protect, getEnrollmentById);
+
+// Admin decision endpoints
+router.post("/enrollments/:id/approve", protect, approveEnrollment);
+router.post("/enrollments/:id/reject", protect, rejectEnrollment);
 
 // GET /programs/:id/enrollments  (admin)
 router.get("/programs/:id/enrollments", protect, getEnrollmentsForProgram);

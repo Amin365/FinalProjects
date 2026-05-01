@@ -43,6 +43,7 @@ const NAV_ITEMS = [
   { title: "Volunteer Management", url: "/dashboard/join-clubs", icon: ActivityIcon },
   { title: "Enrollments", url: "/dashboard/enrollments", icon: User },
   { title: "Attendance", url: "/dashboard/attendance", icon: ClipboardList },
+   { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn },
   { title: "Resources", url: "/dashboard/studentsresources", icon: Trophy },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Notification Settings", url: "/dashboard/notification-settings", icon: Settings },
@@ -52,7 +53,8 @@ const NAV_ITEMS = [
   { title: "System Health", url: "/dashboard/system-health", icon: ActivityIcon },
 ];
 
-const ADMIN_ROLES = new Set(["super admin", "admin"]);
+const isAdminRoleName = (roleName = "") =>
+  /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
 
 const LIBRARY_STAFF_ROUTES = new Set([
   "/dashboard",
@@ -70,11 +72,25 @@ const STUDENT_ROUTES = new Set([
   "/dashboard",
   "/dashboard/issues/request",
   "/dashboard/reservations",
-  "/dashboard/report",
-  "/dashboard/studentsresources",
+ "/dashboard/studentsresources",
+"/dashboard/programmecards",
   "/dashboard/notifications",
   "/dashboard/notification-settings",
+
 ]);
+
+const VOLUNTEER_ROUTES = new Set([
+  "/dashboard",
+  "/dashboard/enrollments",
+  "/dashboard/programmecards",
+  "/dashboard/attendance",
+  "/dashboard/resources",
+  "/dashboard/notifications",
+  "/dashboard/notification-settings",
+])
+
+
+
 
 const DEFAULT_SAFE_ROUTES = new Set([
   "/dashboard",
@@ -92,9 +108,11 @@ const getRoleName = (profileData, user) => {
 };
 
 const getVisibleRoutesForRole = (roleName) => {
-  if (ADMIN_ROLES.has(roleName)) return null;
-  if (roleName === "library staff") return LIBRARY_STAFF_ROUTES;
-  if (roleName === "student") return STUDENT_ROUTES;
+  const normalizedRole = String(roleName || "").toLowerCase();
+  if (isAdminRoleName(normalizedRole)) return null;
+  if (normalizedRole === "library staff" || normalizedRole === "teacher") return LIBRARY_STAFF_ROUTES;
+  if (normalizedRole === "student") return STUDENT_ROUTES;
+  if (normalizedRole === "volunteer") return VOLUNTEER_ROUTES;
   return DEFAULT_SAFE_ROUTES;
 };
 

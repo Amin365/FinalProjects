@@ -4,6 +4,7 @@ import User from "../models/user.js";
 import Member from "../models/Members.js";
 import bcrypt from "bcryptjs";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
+import RefreshToken from "../models/RefreshToken.js";
 
 
 export const createUserFromMember = async (req, res, next) => {
@@ -52,9 +53,9 @@ export const createUserFromMember = async (req, res, next) => {
       email: m.email,
       password,                 // plaintext ok here -> will be hashed by pre-save
       member_id: m.code || String(m._id), // optional mapping
-      role: m.role || null,      // ✅ role copied from member
-      status: m.status || 'Active', // ✅ mirror member status
-      member: m._id,             // ✅ relation user -> member
+      role: m.role || null,      //  role copied from member
+      status: m.status || 'Active', //  mirror member status
+      member: m._id,             //  relation user -> member
 
       // optional audit fields (if you have auth middleware)
       added_by: req.user?._id || null,
@@ -232,12 +233,121 @@ export const updateUserStatus = async (req, res, next) => {
   }
 };
 
+// Admin: update any user's basic info
+export const adminUpdateUserById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const {
+      first_name,
+      middle_name,
+      last_name,
+      username,
+      email,
+      status,
+      role_id,
+      Bio,
+    } = req.body || {};
+
+    const updateData = {};
+    if (first_name !== undefined) updateData.first_name = String(first_name).trim();
+    if (middle_name !== undefined) updateData.middle_name = String(middle_name).trim();
+    if (last_name !== undefined) updateData.last_name = String(last_name).trim();
+    if (username !== undefined) updateData.username = String(username).trim();
+    if (email !== undefined) updateData.email = String(email).trim();
+    if (Bio !== undefined) updateData.Bio = Bio;
+
+    if (status !== undefined) {
+      const allowed = ["Active", "Inactive", "pending"];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ message: `status must be one of: ${allowed.join(", ")}` });
+      }
+      updateData.status = status;
+    }
+
+    if (role_id !== undefined) {
+      if (role_id === null || role_id === "" || role_id === undefined) {
+        updateData.role = null;
+      } else if (!mongoose.Types.ObjectId.isValid(role_id)) {
+        return res.status(400).json({ message: "Invalid role id" });
+      } else {
+        updateData.role = role_id;
+      }
+    }
+
+    updateData.updated_by = req.user?._id || null;
+
+    if (updateData.username) {
+      const existing = await User.findOne({ username: updateData.username, _id: { $ne: id } }).lean().exec();
+      if (existing) return res.status(409).json({ message: "Username already exists" });
+    }
+    if (updateData.email) {
+      const existing = await User.findOne({ email: updateData.email, _id: { $ne: id } }).lean().exec();
+      if (existing) return res.status(409).json({ message: "Email already exists" });
+    }
+
+    const updated = await User.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+      .populate("role", "role color plural system")
+      .populate("member", "first_name middle_name last_name full_name Profile_picture email phone code role")
+      .lean()
+      .exec();
+
+    if (!updated) return res.status(404).json({ message: "User not found" });
+    return res.status(200).json({ data: updated });
+  } catch (err) {
+    if (err && err.code === 11000) {
+      const dupField = Object.keys(err.keyValue || {}).join(", ") || "unique field";
+      return res.status(409).json({ message: `Duplicate ${dupField}: already exists.`, details: err.keyValue || null });
+    }
+    return next(err);
+  }
+};
+
+// Admin: set/reset a user's password
+export const adminSetUserPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const { newPassword, confirmPassword, mustChangePassword } = req.body || {};
+
+    if (!newPassword) {
+      return res.status(400).json({ message: "newPassword is required" });
+    }
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(id).exec();
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.password = newPassword;
+    if (typeof mustChangePassword === "boolean") {
+      user.mustChangePassword = mustChangePassword;
+    }
+    user.updated_by = req.user?._id || null;
+
+    await user.save({ validateBeforeSave: false });
+
+    // revoke all refresh tokens so the user is forced to re-auth
+    await RefreshToken.updateMany({ user: user._id, revoked: false }, { revoked: true }).exec();
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (err) {
+    return next(err);
+  }
+};
 
 
-// ... existing controllers ...
 
-
-// Existing controllers...
 
 // Get current user's profile
 export const getProfile = async (req, res, next) => {
@@ -259,10 +369,10 @@ export const getProfile = async (req, res, next) => {
 // Update current user's profile
 export const updateProfile = async (req, res, next) => {
   try {
- console.log("------------ PROFILE UPDATE REQUEST ------------");
-    console.log("req.headers:", req.headers);
-    console.log("req.file:", req.file);
-    console.log("req.body:", req.body);
+//  console.log("------------ PROFILE UPDATE REQUEST ------------");
+//     console.log("req.headers:", req.headers);
+//     console.log("req.file:", req.file);
+//     console.log("req.body:", req.body);
 
     const userId = req.user._id;
     const { name, bio, phone } = req.body || {};
@@ -457,7 +567,7 @@ export const resetPassword = async (req, res, next) => {
     if (!user)
       return res.status(404).json({ message: "User not found" });
 
-    // ✅ IMPORTANT: assign plain password
+    //  IMPORTANT: assign plain password
     user.password = newPassword;
 
     user.resetPasswordCode = undefined;

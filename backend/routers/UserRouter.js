@@ -9,6 +9,8 @@ import {
   getAvailableMembersForUserCreation,
   updateProfile,
   changePassword,
+  adminUpdateUserById,
+  adminSetUserPassword,
   deleteAccount,
   getProfile,
   forgotPassword,
@@ -91,6 +93,8 @@ router.get('/available_members', protect, getAvailableMembersForUserCreation);
 router.get("/users", protect, requireSuperAdmin, getUsers);
 router.get("/users/:id", protect, requireSuperAdmin, getUserById);
 router.post("/users/from-member", protect, requireSuperAdmin, createUserFromMember);
+router.patch("/users/:id", protect, requireSuperAdmin, adminUpdateUserById);
+router.put("/users/:id/password", protect, requireSuperAdmin, adminSetUserPassword);
 router.patch("/users/:id/status", protect, requireSuperAdmin, updateUserStatus);
 router.get("/profile", protect, getProfile);
 router.post("/forgot-password", forgotPassword);

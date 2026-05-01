@@ -100,7 +100,12 @@ const UsersTable = () => {
     });
   }, [users, searchTerm]);
 
-  // const handleRowClick = (id) => navigate(`/dashboard/users/${id}`);
+  const handleRowClick = (id) => navigate(`/dashboard/users/${id}`);
+
+  const handleViewDetails = (e, id) => {
+    e.stopPropagation();
+    navigate(`/dashboard/users/${id}`);
+  };
 
   const handlePageChange = (newPage) => {
     if (!isLoading && !isFetching && newPage >= 1 && newPage <= totalPages) {
@@ -172,10 +177,10 @@ const UsersTable = () => {
                 return (
                   <tr
                     key={u._id || u.id}
-                    // onClick={() => handleRowClick(u._id || u.id)}
+                    onClick={() => handleRowClick(u._id || u.id)}
                     className="group cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
                   >
-                    <td className="colSpan={3}  p-4 flex items-center gap-3">
+                    <td className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 rounded flex items-center justify-center font-medium text-white shadow-sm bg-gradient-to-br from-orange-500 to-indigo-600">
   {u.member?.Profile_picture ? (
     <img
@@ -222,6 +227,13 @@ const UsersTable = () => {
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={(e) => handleViewDetails(e, u._id || u.id)}
+                        >
+                          Details
+                        </Button>
+                        <Button
+                          size="sm"
                           variant={u.status === "Active" ? "destructive" : "default"}
                           onClick={(e) => handleToggleStatus(e, u)}
                           disabled={updateStatusMutation.isLoading}
@@ -236,7 +248,7 @@ const UsersTable = () => {
 
               {isLoading && (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400 dark:text-gray-400">
+                  <td colSpan={7} className="p-12 text-center text-slate-400 dark:text-gray-400">
                     Loading users...
                   </td>
                 </tr>
@@ -244,7 +256,7 @@ const UsersTable = () => {
 
               {!isLoading && filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400 dark:text-gray-400">
+                  <td colSpan={7} className="p-12 text-center text-slate-400 dark:text-gray-400">
                     No users found.
                   </td>
                 </tr>
@@ -252,7 +264,7 @@ const UsersTable = () => {
 
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-red-500">
+                  <td colSpan={7} className="p-12 text-center text-red-500">
                     Failed to load users.
                   </td>
                 </tr>

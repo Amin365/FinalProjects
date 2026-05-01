@@ -20,11 +20,11 @@ const EnrollmentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
-    // status: confirmed | waitlisted | cancelled
+    // status: pending | confirmed | waitlisted | rejected | cancelled
     status: {
       type: String,
-      enum: ["confirmed", "waitlisted", "cancelled"],
-      default: "confirmed",
+      enum: ["pending", "confirmed", "waitlisted", "rejected", "cancelled"],
+      default: "pending",
     },
     // optional attachments (file url, filename, mimetype)
     attachment: {

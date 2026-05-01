@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import api from "@/app/api/apislice";
+import { useSelector } from "react-redux";
+import { useLocation } from "react-router";
 import {
   Clock, Users, Star, BookOpen, ChevronRight, ChevronLeft,
   Sparkles, TrendingUp, Globe, Flame, X,
@@ -53,12 +55,12 @@ const EDUCATION_LEVELS = [
 
 /* small helpers */
 const inputCls =
-  "w-full px-4 py-3 rounded-xl text-[13px] bg-slate-50 border border-slate-200 " +
-  "text-slate-800 placeholder:text-slate-300 " +
+  "w-full px-4 py-3 rounded-xl text-[13px] bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 " +
+  "text-slate-800 dark:text-gray-100 placeholder:text-slate-300 dark:placeholder:text-gray-500 " +
   "focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all";
 
 const Label = ({ children, req }) => (
-  <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">
+  <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5">
     {children}{req && <span className="text-orange-400 ml-0.5">*</span>}
   </label>
 );
@@ -154,6 +156,9 @@ const mapProgramToCard = (program) => {
   return {
     id: program._id,
     _id: program._id,
+    createdAt: program.createdAt,
+    startDate: program.startDate,
+    endDate: program.endDate,
     category,
     icon,
     ...OR,
@@ -178,11 +183,17 @@ const mapProgramToCard = (program) => {
 
 const fetchPrograms = async () => {
   const res = await api.get("/programs", { params: { page: 1, limit: 200 } });
-  return (res.data?.data || []).map(mapProgramToCard);
+  const raw = res.data?.data || [];
+  const sorted = [...raw].sort((a, b) => {
+    const aTime = new Date(a?.createdAt || a?.startDate || 0).getTime() || 0;
+    const bTime = new Date(b?.createdAt || b?.startDate || 0).getTime() || 0;
+    return bTime - aTime;
+  });
+  return sorted.map(mapProgramToCard);
 };
 
 /* Step 1 — Personal information */
-const StepPersonal = ({ data, onChange }) => (
+const StepPersonal = ({ data, onChange, requireFullForm = false }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <FieldWrap>
       <Label req>First name</Label>
@@ -200,7 +211,7 @@ const StepPersonal = ({ data, onChange }) => (
       </div>
     </FieldWrap>
     <FieldWrap>
-      <Label>Phone number</Label>
+      <Label req={requireFullForm}>Phone number</Label>
       <div className="relative">
         <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         <input className={`${inputCls} pl-9`} placeholder="+1 555 000 0000" value={data.phone} onChange={e => onChange("phone", e.target.value)} />
@@ -211,7 +222,7 @@ const StepPersonal = ({ data, onChange }) => (
       <input className={inputCls} type="date" value={data.dob} onChange={e => onChange("dob", e.target.value)} />
     </FieldWrap> */}
     <FieldWrap>
-      <Label>Gender</Label>
+      <Label req={requireFullForm}>Gender</Label>
       <div className="relative">
         <select className={`${inputCls} appearance-none`} value={data.gender} onChange={e => onChange("gender", e.target.value)}>
           <option value="">Select…</option>
@@ -226,7 +237,7 @@ const StepPersonal = ({ data, onChange }) => (
 );
 
 /* Step 2 — Education background */
-const StepEducation = ({ data, onChange }) => (
+const StepEducation = ({ data, onChange, requireFullForm = false }) => (
   <div className="flex flex-col gap-5">
     <FieldWrap>
       <Label req>Education background</Label>
@@ -240,11 +251,11 @@ const StepEducation = ({ data, onChange }) => (
               onClick={() => onChange("educationLevel", lvl)}
               className={`text-left px-4 py-3 rounded-xl border text-[13px] font-medium transition-all duration-150
                 ${active
-                  ? "border-orange-400 bg-orange-50 text-orange-700 ring-2 ring-orange-100"
-                  : "border-slate-200 text-slate-600 hover:border-orange-200 hover:bg-orange-50/50"
+                  ? "border-orange-400 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 ring-2 ring-orange-100 dark:ring-orange-900/30"
+                  : "border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-300 hover:border-orange-200 hover:bg-orange-50/50 dark:hover:bg-orange-900/10"
                 }`}
             >
-              <span className={`mr-2 inline-block w-3.5 h-3.5 rounded-full border-2 align-middle transition-colors ${active ? "border-orange-500 bg-orange-500" : "border-slate-300"}`} />
+              <span className={`mr-2 inline-block w-3.5 h-3.5 rounded-full border-2 align-middle transition-colors ${active ? "border-orange-500 bg-orange-500" : "border-slate-300 dark:border-slate-500"}`} />
               {lvl}
             </button>
           );
@@ -253,7 +264,7 @@ const StepEducation = ({ data, onChange }) => (
     </FieldWrap>
 
     <FieldWrap>
-      <Label>School / Institution</Label>
+      <Label req={requireFullForm}>School / Institution</Label>
       <input
         className={inputCls}
         placeholder="Your school, college, or institution"
@@ -263,7 +274,7 @@ const StepEducation = ({ data, onChange }) => (
     </FieldWrap>
 
     <FieldWrap>
-      <Label>Field of study</Label>
+      <Label req={requireFullForm}>Field of study</Label>
       <input
         className={inputCls}
         placeholder="Computer science, business, design..."
@@ -275,8 +286,25 @@ const StepEducation = ({ data, onChange }) => (
 );
 
 /*  Success screen  */
-const SuccessScreen = ({ program, onClose }) => (
-  <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-5">
+const SuccessScreen = ({ program, onClose, status }) => {
+  const normalized = String(status || "").toLowerCase();
+  const isPending = normalized === "pending";
+  const isWaitlisted = normalized === "waitlisted";
+
+  const title = isPending
+    ? "Request submitted"
+    : isWaitlisted
+      ? "You're waitlisted"
+      : "You're enrolled! 🎉";
+
+  const message = isPending
+    ? "Your enrollment request was sent. An admin will review it and you'll get an email when it's approved or rejected."
+    : isWaitlisted
+      ? "The program is currently full. You're on the waitlist and we'll notify you if a seat opens up."
+      : "Check your email for confirmation and next steps.";
+
+  return (
+    <div className="flex flex-col items-center justify-center py-10 px-6 text-center gap-5">
     <div
       className="w-20 h-20 rounded-full flex items-center justify-center shadow-xl"
       style={{ background: program.accent }}
@@ -284,9 +312,17 @@ const SuccessScreen = ({ program, onClose }) => (
       <Check size={36} className="text-white" strokeWidth={3} />
     </div>
     <div>
-      <h3 className="text-[22px] font-extrabold text-slate-900 mb-2">You're enrolled! 🎉</h3>
-      <p className="text-[14px] text-slate-500 max-w-sm leading-relaxed">
-        Welcome to <span className="font-bold text-slate-800">{program.title}</span>. Check your email for confirmation and next steps.
+      <h3 className="text-[22px] font-extrabold text-slate-900 dark:text-white mb-2">{title}</h3>
+      <p className="text-[14px] text-slate-500 dark:text-slate-300 max-w-sm leading-relaxed">
+        {isPending ? (
+          <>
+            For <span className="font-bold text-slate-800 dark:text-white">{program.title}</span>, {message}
+          </>
+        ) : (
+          <>
+            Welcome to <span className="font-bold text-slate-800 dark:text-white">{program.title}</span>. {message}
+          </>
+        )}
       </p>
     </div>
     <div
@@ -300,8 +336,8 @@ const SuccessScreen = ({ program, onClose }) => (
         <program.icon size={18} className="text-white" />
       </div>
       <div className="text-left">
-        <p className="text-[13px] font-bold text-slate-800">{program.title}</p>
-        <p className="text-[12px] text-slate-500">{program.duration} · with {program.teacher}</p>
+        <p className="text-[13px] font-bold text-slate-800 dark:text-white">{program.title}</p>
+        <p className="text-[12px] text-slate-500 dark:text-slate-300">{program.duration} · with {program.teacher}</p>
       </div>
       <div className="ml-auto text-right">
         <p className="text-[16px] font-extrabold" style={{ color: program.accent }}>
@@ -316,8 +352,94 @@ const SuccessScreen = ({ program, onClose }) => (
     >
       Back to programs
     </Button>
-  </div>
-);
+    </div>
+  );
+};
+
+const ConfirmEnrollDialog = ({ program, onClose }) => {
+  const queryClient = useQueryClient();
+  const [done, setDone] = useState(false);
+  const [enrollStatus, setEnrollStatus] = useState(null);
+
+  const enrollMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/programs/${program._id}/enroll`, { formData: {} });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setEnrollStatus(data?.data?.status || null);
+      queryClient.invalidateQueries({ queryKey: ["public-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      setDone(true);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to enroll");
+    },
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(15,15,20,0.55)", backdropFilter: "blur(6px)" }}
+    >
+      <div
+        className="w-full max-w-lg rounded-[28px] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-250 bg-white dark:bg-gray-900"
+      >
+        {done ? (
+          <SuccessScreen program={program} status={enrollStatus} onClose={onClose} />
+        ) : (
+          <>
+            <div className="px-7 pt-7 pb-5">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-[12px] flex items-center justify-center shadow-sm shrink-0"
+                    style={{ background: program.accent }}
+                  >
+                    <program.icon size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Confirm enrollment</p>
+                    <h3 className="text-[16px] font-extrabold text-slate-900 dark:text-white leading-tight">{program.title}</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <p className="text-[13.5px] text-slate-500 dark:text-slate-300 leading-relaxed">
+                Do you want to enroll in this program?
+              </p>
+            </div>
+
+            <div className="px-7 py-5 border-t border-slate-100 dark:border-gray-800 flex items-center justify-end gap-3 bg-slate-50/60 dark:bg-gray-900">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-200 text-[13px] font-bold hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
+                disabled={enrollMutation.isPending}
+              >
+                No
+              </button>
+              <Button
+                onClick={() => enrollMutation.mutate()}
+                className="rounded-xl px-5 font-bold text-white"
+                style={{ background: program.accent }}
+                disabled={enrollMutation.isPending}
+              >
+                {enrollMutation.isPending ? "Enrolling..." : "Yes, enroll"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 /*  Enrollment Dialog  */
 const EMPTY_FORM = {
@@ -327,10 +449,53 @@ const EMPTY_FORM = {
 
 const EnrollmentDialog = ({ program, onClose }) => {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const { user: authUser, token } = useSelector((state) => state.auth);
+
+  const roleName = useMemo(() => {
+    const raw = authUser?.role?.role || authUser?.role?.plural || authUser?.role || "";
+    return String(raw).toLowerCase().trim();
+  }, [authUser]);
+
+  const isDashboardRoute = location?.pathname?.startsWith("/dashboard");
+  const isStudent = /student/i.test(roleName);
+  const shouldAutoFill = Boolean(token && isDashboardRoute && isStudent);
+  const requireFullForm = !isDashboardRoute;
+
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(EMPTY_FORM);
   const [done, setDone] = useState(false);
+  const [enrollStatus, setEnrollStatus] = useState(null);
   const [error, setError] = useState("");
+
+  const { data: profileData } = useQuery({
+    queryKey: ["enroll-profile", token],
+    queryFn: async () => {
+      const res = await api.get("/auth/me");
+      return res.data;
+    },
+    enabled: shouldAutoFill,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (!shouldAutoFill) return;
+    const profileUser = profileData?.user;
+    if (!profileUser) return;
+
+    const nextFirstName = String(profileUser.first_name || authUser?.first_name || "").trim();
+    const nextLastName = String(profileUser.last_name || authUser?.last_name || "").trim();
+    const nextEmail = String(profileUser.email || authUser?.email || "").trim();
+
+    setForm((prev) => {
+      // Only fill empty fields so we don't overwrite user edits.
+      const updated = { ...prev };
+      if (!updated.firstName && nextFirstName) updated.firstName = nextFirstName;
+      if (!updated.lastName && nextLastName) updated.lastName = nextLastName;
+      if (!updated.email && nextEmail) updated.email = nextEmail;
+      return updated;
+    });
+  }, [shouldAutoFill, profileData, authUser]);
 
   const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
@@ -339,9 +504,10 @@ const EnrollmentDialog = ({ program, onClose }) => {
       const res = await api.post(`/programs/${program._id}/enroll`, payload);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["public-programs"] });
       queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      setEnrollStatus(data?.data?.status || null);
       setDone(true);
     },
     onError: (err) => {
@@ -350,11 +516,25 @@ const EnrollmentDialog = ({ program, onClose }) => {
   });
 
   const validate = () => {
-    if (step === 1 && (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim())) {
-      return "Please fill in your first name, last name and email.";
+    if (step === 1) {
+      if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+        return "Please fill in your first name, last name and email.";
+      }
+      if (requireFullForm) {
+        if (!form.phone.trim() || !form.gender.trim()) {
+          return "Please fill in your phone number and gender.";
+        }
+      }
     }
-    if (step === 2 && !form.educationLevel) {
-      return "Please select your education background.";
+    if (step === 2) {
+      if (!form.educationLevel) {
+        return "Please select your education background.";
+      }
+      if (requireFullForm) {
+        if (!form.institution.trim() || !form.fieldOfStudy.trim()) {
+          return "Please fill in your school/institution and field of study.";
+        }
+      }
     }
     return null;
   };
@@ -385,11 +565,11 @@ const EnrollmentDialog = ({ program, onClose }) => {
       style={{ background: "rgba(15,15,20,0.55)", backdropFilter: "blur(6px)" }}
     >
       <div
-        className="bg-white w-full max-w-2xl rounded-[28px] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-250"
+        className="w-full max-w-2xl rounded-[28px] overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-250 bg-white dark:bg-gray-900"
         style={{ maxHeight: "92vh" }}
       >
         {done ? (
-          <SuccessScreen program={program} onClose={onClose} />
+          <SuccessScreen program={program} status={enrollStatus} onClose={onClose} />
         ) : (
           <>
             <div className="px-7 pt-7 pb-0 shrink-0">
@@ -403,30 +583,30 @@ const EnrollmentDialog = ({ program, onClose }) => {
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Enrolling in</p>
-                    <h3 className="text-[15px] font-extrabold text-slate-900 leading-tight">{program.title}</h3>
+                    <h3 className="text-[15px] font-extrabold text-slate-900 dark:text-white leading-tight">{program.title}</h3>
                   </div>
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
                 >
                   <X size={15} />
                 </button>
               </div>
 
-              <div className="rounded-[24px] border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 p-4 mb-5">
+              <div className="rounded-3xl border border-orange-100 dark:border-gray-800 bg-linear-to-br from-orange-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 p-4 mb-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500">Free Enrollment</p>
-                    <h4 className="mt-1 text-[18px] font-extrabold text-slate-900">Quick registration</h4>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-slate-500">
+                    <h4 className="mt-1 text-[18px] font-extrabold text-slate-900 dark:text-white">Quick registration</h4>
+                    <p className="mt-1 text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-300">
                       Fill in your contact details and we&apos;ll save your enrollment for this program.
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-4 py-3 border border-orange-100 shadow-sm min-w-[180px]">
+                  <div className="rounded-2xl bg-white dark:bg-gray-900 px-4 py-3 border border-orange-100 dark:border-gray-800 shadow-sm min-w-[180px]">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Program</p>
-                    <p className="mt-1 text-[13px] font-bold text-slate-800">{program.title}</p>
-                    <p className="mt-1 text-[12px] text-slate-500">{program.duration} · {program.teacher}</p>
+                    <p className="mt-1 text-[13px] font-bold text-slate-800 dark:text-white">{program.title}</p>
+                    <p className="mt-1 text-[12px] text-slate-500 dark:text-slate-300">{program.duration} · {program.teacher}</p>
                   </div>
                 </div>
               </div>
@@ -467,14 +647,14 @@ const EnrollmentDialog = ({ program, onClose }) => {
               </div>
 
               <div className="flex justify-between items-center mt-2 mb-5">
-                <h4 className="text-[16px] font-extrabold text-slate-900">{STEPS[step - 1].label}</h4>
+                <h4 className="text-[16px] font-extrabold text-slate-900 dark:text-white">{STEPS[step - 1].label}</h4>
                 <span className="text-[12px] text-slate-400 font-semibold">Step {step} of {STEPS.length}</span>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-7 pb-2">
-              {step === 1 && <StepPersonal data={form} onChange={update} />}
-              {step === 2 && <StepEducation data={form} onChange={update} />}
+              {step === 1 && <StepPersonal data={form} onChange={update} requireFullForm={requireFullForm} />}
+              {step === 2 && <StepEducation data={form} onChange={update} requireFullForm={requireFullForm} />}
             </div>
 
             {error && (
@@ -483,11 +663,11 @@ const EnrollmentDialog = ({ program, onClose }) => {
               </div>
             )}
 
-            <div className="px-7 py-5 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0 bg-slate-50/60">
+            <div className="px-7 py-5 border-t border-slate-100 dark:border-gray-800 flex items-center justify-between gap-3 shrink-0 bg-slate-50/60 dark:bg-gray-900">
               <button
                 type="button"
                 onClick={step > 1 ? () => { setError(""); setStep(s => s - 1); } : onClose}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-[13px] font-bold hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-slate-200 text-[13px] font-bold hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <ChevronLeft size={15} /> {step > 1 ? "Previous" : "Cancel"}
               </button>
@@ -522,7 +702,7 @@ const EnrollmentDialog = ({ program, onClose }) => {
 const Stars = ({ rating }) => (
   <div className="flex gap-0.5">
     {[1,2,3,4,5].map((i) => (
-      <Star key={i} size={11} className={i <= Math.round(rating) ? "fill-orange-400 text-orange-400" : "fill-slate-200 text-slate-200"} />
+      <Star key={i} size={11} className={i <= Math.round(rating) ? "fill-orange-400 text-orange-400" : "fill-slate-200 text-slate-200 dark:fill-slate-700 dark:text-slate-700"} />
     ))}
   </div>
 );
@@ -562,7 +742,7 @@ const ProgramCard = ({ program, onEnroll }) => {
         style={{ transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
       >
         <div
-          className="absolute inset-0 rounded-[24px] bg-white border border-slate-100 overflow-hidden flex flex-col shadow-sm"
+          className="absolute inset-0 rounded-3xl overflow-hidden flex flex-col shadow-sm bg-white dark:bg-gray-900 border border-slate-100 dark:border-gray-800"
           style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
         >
           <div className="relative h-[110px] overflow-hidden shrink-0" style={{ background: program.accentLight }}>
@@ -580,8 +760,8 @@ const ProgramCard = ({ program, onEnroll }) => {
 
           <div className="flex flex-col flex-1 px-5 pt-4 pb-0 gap-3 overflow-hidden">
             <div>
-              <h3 className="text-[15px] font-bold text-slate-900 leading-tight mb-1.5">{program.title}</h3>
-              <p className="text-[12.5px] text-slate-500 leading-relaxed line-clamp-2">{program.desc}</p>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white leading-tight mb-1.5">{program.title}</h3>
+              <p className="text-[12.5px] text-slate-500 dark:text-slate-300 leading-relaxed line-clamp-2">{program.desc}</p>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {program.tags.map((t) => (
@@ -597,23 +777,23 @@ const ProgramCard = ({ program, onEnroll }) => {
             </div>
             <div className="flex items-center gap-1.5">
               <Stars rating={program.rating} />
-              <span className="text-[12px] font-bold text-slate-700">{program.rating.toFixed(1)}</span>
+              <span className="text-[12px] font-bold text-slate-700 dark:text-slate-200">{program.rating.toFixed(1)}</span>
               <span className="text-[11px] text-slate-400">({program.reviews} reviews)</span>
             </div>
             <CapacityBar enrolled={program.enrolled} capacity={program.capacity} />
           </div>
 
-          <div className="px-5 py-4 flex items-center justify-between border-t border-slate-50 mt-2">
+          <div className="px-5 py-4 flex items-center justify-between border-t border-slate-50 dark:border-gray-800 mt-2">
             <span className="text-[18px] font-extrabold text-emerald-500">Free</span>
             {isFull
-              ? <span className="text-[12px] font-semibold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-xl">Program full</span>
+              ? <span className="text-[12px] font-semibold text-slate-400 bg-slate-100 dark:bg-gray-800 px-3 py-1.5 rounded-xl">Program full</span>
               : <span className="text-[11px] text-slate-400 flex items-center gap-1 animate-pulse">Hover to preview <ArrowRight size={11} /></span>
             }
           </div>
         </div>
 
         <div
-          className="absolute inset-0 rounded-[24px] overflow-hidden flex flex-col"
+          className="absolute inset-0 rounded-3xl overflow-hidden flex flex-col"
           style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)", background: program.accent }}
         >
           <div className="absolute inset-0 opacity-[0.08]"
@@ -665,11 +845,11 @@ const ProgramCard = ({ program, onEnroll }) => {
 /*  Stat  */
 const Stat = ({ icon: Icon, value, label }) => (
   <div className="flex items-center gap-2.5">
-    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center">
+    <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 flex items-center justify-center">
       <Icon size={15} className="text-orange-500" />
     </div>
     <div>
-      <p className="text-[15px] font-extrabold text-slate-900 leading-none">{value}</p>
+      <p className="text-[15px] font-extrabold text-slate-900 dark:text-white leading-none">{value}</p>
       <p className="text-[11px] text-slate-400 mt-0.5">{label}</p>
     </div>
   </div>
@@ -679,10 +859,13 @@ const Stat = ({ icon: Icon, value, label }) => (
    PAGE
  */
 const ProgramsPage = () => {
+  const location = useLocation();
   const [active, setActive] = useState("all");
   const [animKey, setAnimKey] = useState(0);
   const [visible, setVisible] = useState([]);
   const [enrollTarget, setEnrollTarget] = useState(null);
+
+  const isDashboardProgrammeCards = location?.pathname?.startsWith("/dashboard/programmecards");
 
   const { data: programs = [], isLoading } = useQuery({
     queryKey: ["public-programs"],
@@ -692,23 +875,28 @@ const ProgramsPage = () => {
 
   useEffect(() => {
     const nextVisible = active === "all" ? programs : programs.filter(p => p.category === active);
-    setVisible(nextVisible);
+    const sorted = [...nextVisible].sort((a, b) => {
+      const aTime = new Date(a?.createdAt || a?.startDate || 0).getTime() || 0;
+      const bTime = new Date(b?.createdAt || b?.startDate || 0).getTime() || 0;
+      return bTime - aTime;
+    });
+    setVisible(sorted);
     setAnimKey(k => k + 1);
   }, [active, programs]);
 
   const activeLearners = programs.reduce((sum, program) => sum + Number(program.enrolled || 0), 0);
 
   return (
-    <div className="min-h-screen bg-white px-4 pt-16 pb-20">
+    <div className="min-h-screen px-4 pt-16 pb-20 bg-slate-50 dark:bg-gray-950">
       <div className="max-w-6xl mx-auto">
 
         <div className="mb-14">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-500 text-[12px] font-bold mb-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 text-orange-500 dark:text-orange-300 text-[12px] font-bold mb-6">
             <Sparkles size={12} /> Expert-led · Outcome-focused · Flexible
           </div>
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
             <div className="max-w-2xl">
-              <h1 className="text-4xl md:text-[52px] font-extrabold text-slate-900 leading-[1.08] tracking-tight">
+              <h1 className="text-4xl md:text-[52px] font-extrabold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
                 Build skills that{" "}
                 <span className="relative whitespace-nowrap">
                   <span className="text-orange-500">open doors</span>
@@ -717,7 +905,7 @@ const ProgramsPage = () => {
                   </svg>
                 </span>
               </h1>
-              <p className="mt-5 text-[16px] text-slate-500 leading-[1.75] max-w-lg">
+              <p className="mt-5 text-[16px] text-slate-500 dark:text-slate-300 leading-[1.75] max-w-lg">
                 Practical, hands-on programs designed by industry professionals. Whether you're switching careers, leveling up, or exploring something new — we have a program built for your goals.
               </p>
             </div>
@@ -727,7 +915,7 @@ const ProgramsPage = () => {
               <Stat icon={Flame} value={String(programs.length)} label="Programs now" />
             </div>
           </div>
-          <div className="mt-10 h-px bg-gradient-to-r from-orange-200 via-slate-100 to-transparent" />
+          <div className="mt-10 h-px bg-linear-to-r from-orange-200 via-slate-100 to-transparent" />
         </div>
 
         <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
@@ -736,7 +924,7 @@ const ProgramsPage = () => {
               <button key={key} onClick={() => setActive(key)}
                 className={`px-4 py-2 rounded-xl text-[13px] font-bold transition-all duration-200
                   ${active === key ? "bg-orange-500 text-white shadow-md shadow-orange-200 scale-[1.02]"
-                    : "bg-white text-slate-500 border border-slate-200 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200"}`}>
+                    : " text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-500 hover:border-orange-200 dark:hover:border-orange-800"}`}>
                 {label}
               </button>
             ))}
@@ -765,7 +953,7 @@ const ProgramsPage = () => {
           </div>
         )}
 
-        <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-5 px-8 py-7 rounded-3xl bg-orange-50 border border-orange-100">
+        {/* <div className="mt-16 flex flex-col sm:flex-row items-center justify-between gap-5 px-8 py-7 rounded-3xl bg-orange-50 border border-orange-100">
           <div>
             <h3 className="text-[17px] font-extrabold text-slate-900">Not sure where to start?</h3>
             <p className="text-[13px] text-slate-500 mt-1">Talk to an advisor — we'll match you with the right program.</p>
@@ -773,14 +961,21 @@ const ProgramsPage = () => {
           <Button className="shrink-0 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-md shadow-orange-200 px-6 gap-2">
             Get matched <ArrowRight size={14} />
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {enrollTarget && (
-        <EnrollmentDialog
-          program={enrollTarget}
-          onClose={() => setEnrollTarget(null)}
-        />
+        isDashboardProgrammeCards ? (
+          <ConfirmEnrollDialog
+            program={enrollTarget}
+            onClose={() => setEnrollTarget(null)}
+          />
+        ) : (
+          <EnrollmentDialog
+            program={enrollTarget}
+            onClose={() => setEnrollTarget(null)}
+          />
+        )
       )}
     </div>
   );

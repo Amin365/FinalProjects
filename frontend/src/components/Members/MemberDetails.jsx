@@ -627,9 +627,8 @@ export default function MemberDetails() {
         <div className="flex gap-1 border-b border-slate-200 dark:border-gray-700 mb-6">
           {[
             { id: "profile", label: "Profile", icon: Users },
-            { id: "issues", label: "Issue History", icon: BookOpen },
-            { id: "reports", label: "Daily Reports", icon: FileText },
-            { id: "notes", label: "Notes", icon: StickyNote },
+            { id: "issues", label: "Issue History", icon: BookOpen }
+          
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -691,7 +690,7 @@ export default function MemberDetails() {
         )}
 
         {/* Daily Reports tab */}
-        {activeTab === "reports" && (
+        {/* {activeTab === "reports" && (
           <div>
             {overviewLoading && <p className="text-sm text-slate-400 py-6 text-center">Loading…</p>}
             {!overviewLoading && overviewData && (
@@ -727,7 +726,7 @@ export default function MemberDetails() {
               </>
             )}
           </div>
-        )}
+        )} */}
 
         {/* Notes tab */}
         {activeTab === "notes" && (

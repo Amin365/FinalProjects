@@ -3,6 +3,7 @@ import Enrollment from "../models/Enrollment.js";
 import Clubreq from "../models/Clubreq.js";
 import User from "../models/user.js";
 import Role from "../models/Role.js";
+import mongoose from "mongoose";
 
 const ALLOWED_STATUS = ["active", "inactive", "completed", "draft"];
 
@@ -34,7 +35,12 @@ const getTeacherMap = async (teacherIds) => {
   const uniqueTeacherIds = [...new Set((teacherIds || []).filter(Boolean).map(String))];
   if (!uniqueTeacherIds.length) return new Map();
 
-  const users = await User.find({ _id: { $in: uniqueTeacherIds } })
+  // teacherId is stored as a string in Program and may contain legacy/non-ObjectId values.
+  // Never pass invalid ids into a Mongo _id $in query (it throws CastError).
+  const validTeacherIds = uniqueTeacherIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (!validTeacherIds.length) return new Map();
+
+  const users = await User.find({ _id: { $in: validTeacherIds } })
     .select("_id first_name last_name username email")
     .lean();
 
@@ -84,7 +90,9 @@ const getAvailableTeacherUsers = async () => {
     .lean();
 
   const approvedEmails = [...new Set(approvedRequests.map((request) => String(request.email || "").trim().toLowerCase()).filter(Boolean))];
-  const approvedUserIds = approvedRequests.map((request) => request.userId).filter(Boolean);
+  const approvedUserIds = approvedRequests
+    .map((request) => String(request.userId || "").trim())
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
   const teacherUsers = await User.find({
     $or: [

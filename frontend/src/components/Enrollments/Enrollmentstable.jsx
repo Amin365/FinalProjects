@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Check, Eye, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import api from "@/app/api/apislice";
@@ -31,8 +31,10 @@ const getInitials = (name = "") =>
     .toUpperCase();
 
 const STATUS_CLASSES = {
+  pending: "bg-slate-100 text-slate-700",
   confirmed: "bg-emerald-100 text-emerald-700",
   waitlisted: "bg-amber-100 text-amber-700",
+  rejected: "bg-red-100 text-red-700",
   cancelled: "bg-slate-200 text-slate-700",
 };
 
@@ -65,6 +67,36 @@ const EnrollmentsTable = () => {
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to remove enrollment");
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await api.post(`/enrollments/${id}/approve`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Enrollment approved");
+      queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["public-programs"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to approve enrollment");
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await api.post(`/enrollments/${id}/reject`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Enrollment rejected");
+      queryClient.invalidateQueries({ queryKey: ["admin-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["public-programs"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to reject enrollment");
     },
   });
 
@@ -201,6 +233,31 @@ const EnrollmentsTable = () => {
 
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-1">
+                          {item.status === "pending" && (
+                            <>
+                              <button
+                                type="button"
+                                className="rounded p-2 hover:bg-emerald-50 disabled:opacity-60"
+                                title="Approve"
+                                onClick={() => approveMutation.mutate(item._id)}
+                                disabled={approveMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 text-emerald-600" />
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded p-2 hover:bg-red-50 disabled:opacity-60"
+                                title="Reject"
+                                onClick={() => {
+                                  const ok = window.confirm("Reject this enrollment request?");
+                                  if (ok) rejectMutation.mutate(item._id);
+                                }}
+                                disabled={rejectMutation.isPending}
+                              >
+                                <X className="h-4 w-4 text-red-600" />
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             className="rounded p-2 hover:bg-slate-100"
