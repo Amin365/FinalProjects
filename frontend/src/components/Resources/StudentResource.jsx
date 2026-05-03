@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search, Download, BookOpen, FileText, Film,
   FileSpreadsheet, Link2, Star, Eye,
@@ -8,93 +9,94 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import api from "@/app/api/apislice";
+import FilePreview from "@/components/ExtraComponents/FilePreview";
+import { toast } from "sonner";
 
-/* 
-   MOCK DATA
- */
-const RESOURCES = [
-  {
-    id: 1,
-    title: "Introduction to React — Complete Guide",
-    description: "A comprehensive guide covering React fundamentals, hooks, context API, and best practices for building modern web applications.",
-    type: "pdf", category: "Technology", accessLevel: "public",
-    fileUrl: "#", fileSize: "4.2 MB", pages: 98,
-    author: "Lena Hartmann", uploadedAt: "2025-03-12",
-    downloads: 1240, views: 3800, rating: 4.8, featured: true,
-  },
-  {
-    id: 2,
-    title: "Data Structures & Algorithms — Visual Notes",
-    description: "Hand-crafted visual notes on arrays, trees, graphs, sorting algorithms, and Big-O complexity analysis.",
-    type: "docx", category: "Computer Science", accessLevel: "public",
-    fileUrl: "#", fileSize: "2.8 MB", pages: 64,
-    author: "James Osei", uploadedAt: "2025-02-20",
-    downloads: 870, views: 2100, rating: 4.6, featured: false,
-  },
-  {
-    id: 3,
-    title: "Digital Marketing Strategy — Masterclass",
-    description: "SEO, content marketing, email campaigns, paid ads, and analytics dashboards with real-world case studies.",
-    type: "video", category: "Business", accessLevel: "program-only",
-    fileUrl: "#", fileSize: "1.2 GB", duration: "3h 40m",
-    author: "Carlos Vega", uploadedAt: "2025-01-15",
-    downloads: 540, views: 1900, rating: 4.9, featured: true,
-  },
-  {
-    id: 4,
-    title: "Python for Data Science — Starter Kit",
-    description: "Jupyter notebooks, cheat sheets and project templates for pandas, numpy, matplotlib and scikit-learn.",
-    type: "xlsx", category: "Data Science", accessLevel: "public",
-    fileUrl: "#", fileSize: "890 KB", sheets: 12,
-    author: "Yuki Tanaka", uploadedAt: "2025-03-28",
-    downloads: 2100, views: 5600, rating: 4.7, featured: false,
-  },
-  {
-    id: 5,
-    title: "UX Research Methods Playbook",
-    description: "Templates and frameworks for user interviews, usability testing, affinity mapping, and journey mapping sessions.",
-    type: "pptx", category: "Design", accessLevel: "public",
-    fileUrl: "#", fileSize: "18 MB", slides: 84,
-    author: "Sofia Mendes", uploadedAt: "2025-04-01",
-    downloads: 660, views: 1450, rating: 4.5, featured: false,
-  },
-  {
-    id: 6,
-    title: "Cloud Architecture on AWS — Reference Sheet",
-    description: "Quick-reference diagrams for EC2, S3, Lambda, RDS, VPCs, and the most common architecture patterns.",
-    type: "pdf", category: "Technology", accessLevel: "private",
-    fileUrl: "#", fileSize: "1.1 MB", pages: 22,
-    author: "Amara Diallo", uploadedAt: "2025-02-08",
-    downloads: 980, views: 2700, rating: 4.9, featured: true,
-  },
-  {
-    id: 7,
-    title: "Entrepreneurship Fundamentals — Lecture Slides",
-    description: "Lean startup methodology, business model canvas, pitching strategies, and product-market fit frameworks.",
-    type: "ppt", category: "Business", accessLevel: "program-only",
-    fileUrl: "#", fileSize: "9.4 MB", slides: 110,
-    author: "Marcus Reed", uploadedAt: "2025-03-05",
-    downloads: 430, views: 980, rating: 4.4, featured: false,
-  },
-  {
-    id: 8,
-    title: "Cybersecurity Cheat Sheet — 2025 Edition",
-    description: "OWASP top 10, common exploits, network security basics, and ethical hacking tools reference guide.",
-    type: "link", category: "Technology", accessLevel: "public",
-    fileUrl: "https://example.com/cybersec", fileSize: null,
-    author: "James Osei", uploadedAt: "2025-04-10",
-    downloads: 1580, views: 4200, rating: 4.7, featured: false,
-  },
-  {
-    id: 9,
-    title: "Machine Learning Roadmap — Beginner to Advanced",
-    description: "A curated path from linear regression to deep neural networks with resource links and project ideas.",
-    type: "pdf", category: "Data Science", accessLevel: "public",
-    fileUrl: "#", fileSize: "3.3 MB", pages: 44,
-    author: "Lena Hartmann", uploadedAt: "2025-04-18",
-    downloads: 1750, views: 4900, rating: 4.9, featured: true,
-  },
-];
+const getPublicBaseUrl = () => {
+  const base = String(api?.defaults?.baseURL || "");
+  // baseURL is typically like http://localhost:5000/api
+  return base.replace(/\/api\/?$/, "");
+};
+
+const normalizeFileUrl = (rawUrl) => {
+  const url = String(rawUrl || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const publicBase = getPublicBaseUrl();
+  const cleaned = url.replace(/\\/g, "/");
+  if (!publicBase) return cleaned;
+
+  if (cleaned.startsWith("/")) return `${publicBase}${cleaned}`;
+  return `${publicBase}/${cleaned}`;
+};
+
+const guessMimeFromType = (resourceType, fileUrl) => {
+  const t = String(resourceType || "").toLowerCase();
+  const url = String(fileUrl || "");
+  const ext = (url.split("?")[0].split("#")[0].split(".").pop() || "").toLowerCase();
+
+  const fromExt = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+  };
+  if (fromExt[ext]) return fromExt[ext];
+
+  if (t === "video") return "video/mp4";
+  if (t === "link") return "text/html";
+  if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(t)) {
+    return fromExt[t] || "application/octet-stream";
+  }
+  return "application/octet-stream";
+};
+
+const toCardResource = (serverResource) => {
+  const uploadedBy = serverResource?.uploadedBy;
+  const authorName =
+    uploadedBy && typeof uploadedBy === "object"
+      ? [uploadedBy.first_name, uploadedBy.last_name].filter(Boolean).join(" ").trim() || uploadedBy.email
+      : String(uploadedBy || "");
+
+  const fileUrl = normalizeFileUrl(serverResource?.fileUrl || "");
+  const type = String(serverResource?.type || "other").toLowerCase();
+
+  return {
+    id: String(serverResource?._id || ""),
+    title: serverResource?.title || "",
+    description: serverResource?.description || "",
+    type,
+    category: serverResource?.category || "Uncategorized",
+    accessLevel: serverResource?.accessLevel || "public",
+    fileUrl,
+    fileSize: null,
+    author: authorName || "—",
+    uploadedAt: serverResource?.createdAt || serverResource?.updatedAt || new Date().toISOString(),
+    downloads: Number(serverResource?.downloads || 0),
+    views: Number(serverResource?.views || 0),
+    rating: 0,
+    featured: false,
+    __previewFile: {
+      filename: serverResource?.title || "resource",
+      filepath: fileUrl,
+      mimetype: guessMimeFromType(type, fileUrl),
+    },
+  };
+};
 
 const CATEGORIES = [
   { key: "All",              label: "All resources" },
@@ -151,7 +153,7 @@ const Stars = ({ rating }) => (
 /* 
    RESOURCE CARD  — wide, 3-col grid
  */
-const ResourceCard = ({ resource, saved, onSave }) => {
+const ResourceCard = ({ resource, saved, onSave, onPreview, onDownload }) => {
   const tm  = TYPE_META[resource.type] || TYPE_META.other;
   const am  = ACCESS_META[resource.accessLevel] || ACCESS_META.public;
   const Icon = tm.icon;
@@ -234,7 +236,7 @@ const ResourceCard = ({ resource, saved, onSave }) => {
 
       {/*  Footer  */}
       <div className="px-6 pb-6 pt-2 border-t border-slate-100 dark:border-gray-800 mt-auto">
-        <div className="flex items-center gap-3 mt-4">
+        <div className="flex items-center gap-5 mt-4">
           {/* Save */}
           <button
             onClick={() => onSave(resource.id)}
@@ -249,18 +251,30 @@ const ResourceCard = ({ resource, saved, onSave }) => {
           </button>
 
           {/* Preview */}
-          <button
-            onClick={() => window.open(resource.fileUrl, "_blank")}
-            className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-slate-300 text-[13px] font-bold flex items-center justify-center gap-2 hover:border-orange-300 hover:text-orange-500 dark:hover:text-orange-400 transition-all"
-          >
-            <Eye size={15} />
-            {isLink ? "Open link" : "Preview"}
-          </button>
+          {isLink ? (
+            <button
+              onClick={onPreview}
+              className="flex-1 w-full h-11 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-slate-300 text-[13px] font-bold flex items-center justify-center gap-2 hover:border-orange-300 hover:text-orange-500 dark:hover:text-orange-400 transition-all"
+            >
+              <Eye size={15} />
+              Open link
+            </button>
+          ) : (
+            <FilePreview file={resource.__previewFile} selectedIndex={0} allFiles={[resource.__previewFile]}>
+              <button
+                onClick={onPreview}
+                className="flex-1 h-11 w-full rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-slate-300 text-[13px] font-bold flex items-center justify-center gap-2 hover:border-orange-300 hover:text-orange-500 dark:hover:text-orange-400 transition-all"
+              >
+                <Eye size={15} />
+                Preview
+              </button>
+            </FilePreview>
+          )}
 
           {/* Download */}
           {!isLink && (
             <button
-              onClick={() => window.open(resource.fileUrl, "_blank")}
+              onClick={onDownload}
               className="flex-1 h-11 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all"
             >
               <Download size={15} />
@@ -277,10 +291,47 @@ const ResourceCard = ({ resource, saved, onSave }) => {
    PAGE
  */
 export default function StudentResources() {
+  const qc = useQueryClient();
   const [search,   setSearch]   = useState("");
   const [category, setCategory] = useState("All");
   const [sort,     setSort]     = useState("newest");
   const [savedIds, setSavedIds] = useState(new Set());
+
+  const resourcesQuery = useQuery({
+    queryKey: ["student-resources"],
+    queryFn: async () => {
+      const res = await api.get("/resources", { params: { page: 1, limit: 100 } });
+      return Array.isArray(res.data?.data) ? res.data.data : [];
+    },
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (!resourcesQuery.error) return;
+    toast.error(resourcesQuery?.error?.response?.data?.message || "Failed to load resources");
+  }, [resourcesQuery.error]);
+
+  const resources = useMemo(() => (resourcesQuery.data || []).map(toCardResource), [resourcesQuery.data]);
+
+  const incViews = useMutation({
+    mutationFn: async (id) => {
+      await api.post(`/resources/${id}/views`);
+      return id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student-resources"] });
+    },
+  });
+
+  const incDownloads = useMutation({
+    mutationFn: async (id) => {
+      await api.post(`/resources/${id}/downloads`);
+      return id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student-resources"] });
+    },
+  });
 
   const toggleSave = (id) =>
     setSavedIds(prev => {
@@ -290,7 +341,7 @@ export default function StudentResources() {
     });
 
   const filtered = useMemo(() => {
-    let list = [...RESOURCES];
+    let list = [...resources];
     if (search.trim())
       list = list.filter(r =>
         [r.title, r.description, r.author, r.category].join(" ")
@@ -303,7 +354,7 @@ export default function StudentResources() {
     if (sort === "popular") list.sort((a, b) => b.downloads - a.downloads);
     if (sort === "rating")  list.sort((a, b) => b.rating - a.rating);
     return list;
-  }, [search, category, sort]);
+  }, [resources, search, category, sort]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-950 pb-24">
@@ -345,8 +396,8 @@ export default function StudentResources() {
             {/* Header stats */}
             <div className="flex gap-6 shrink-0">
               {[
-                { icon: BookOpen,   value: RESOURCES.length,                           label: "Total files"   },
-                { icon: Star,       value: RESOURCES.filter(r => r.featured).length,   label: "Featured"      },
+                { icon: BookOpen,   value: resources.length,                            label: "Total files"   },
+                { icon: Star,       value: resources.filter(r => r.featured).length,    label: "Featured"      },
                 { icon: BookMarked, value: savedIds.size,                              label: "Saved by you"  },
               ].map(({ icon: Icon, value, label }) => (
                 <div key={label} className="flex items-center gap-2.5">
@@ -429,6 +480,14 @@ export default function StudentResources() {
                   resource={r}
                   saved={savedIds.has(r.id)}
                   onSave={toggleSave}
+                  onPreview={() => {
+                    incViews.mutate(r.id);
+                    if (r.type === "link") window.open(r.fileUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  onDownload={() => {
+                    incDownloads.mutate(r.id);
+                    window.open(r.fileUrl, "_blank", "noopener,noreferrer");
+                  }}
                 />
               </div>
             ))}

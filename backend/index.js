@@ -36,6 +36,8 @@ import ResourceRouter from './routers/ResourceRouter.js';
 import { startScheduledPublishing } from "./modules/scheduledPublishing.js";
 import EnrollmentRouter from "./routers/enrollments.js";
 import AttendanceRouter from "./routers/AttendanceRouter.js";
+import ChatRouter from "./routers/ChatRouter.js";
+import { createHttpServerWithSockets } from "./modules/socket.js";
 // Phase 8 - Admin Governance and Safety
 import AuditLogRouter from './routers/AuditLogRouter.js';
 import SystemHealthRouter from './routers/SystemHealthRouter.js';
@@ -48,8 +50,6 @@ app.set("trust proxy", 1);
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -71,6 +71,10 @@ app.use(
   })
 );
 
+// Serve locally uploaded files (e.g. /uploads/<filename>)
+// Mounted AFTER cors() so downloads (fetch) work cross-origin in dev.
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -79,7 +83,7 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://images.unsplash.com", "https://i.pravatar.cc"],
-        connectSrc: ["'self'", "https://jjureadingclub.com"], // allow API calls
+        connectSrc: ["'self'", "https://jjureadingclub.com", "wss://jjureadingclub.com", "ws://localhost:5000"], // allow API + Socket.IO
         frameAncestors: ["'none'"],
       },
     },
@@ -125,6 +129,7 @@ app.use('/api',DashboardRouter)
 app.use('/api', ResourceRouter);
 app.use("/api", EnrollmentRouter);
 app.use("/api", AttendanceRouter);
+app.use("/api", ChatRouter);
 //  - Admin Governance and Safety
 app.use('/api', AuditLogRouter);
 app.use('/api', SystemHealthRouter);
@@ -209,6 +214,8 @@ mongoose.connect(process.env.NODE_ENV === 'production' ? process.env.Mongo_atlas
   .catch((error) => console.log('❌ MongoDB Connection Error:', error));
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const { server } = createHttpServerWithSockets(app, { allowedOrigins });
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server (HTTP + Socket.IO) running on port ${PORT}`);
 });
