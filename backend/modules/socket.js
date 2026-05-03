@@ -64,6 +64,10 @@ export const createHttpServerWithSockets = (app, { allowedOrigins = [] } = {}) =
       io.emit("presence:update", { userId: me, online: true });
     }
 
+    // Send current online snapshot to the newly connected client
+    // so they can mark green dots immediately (no need to wait for updates).
+    socket.emit("presence:snapshot", { onlineUserIds: Array.from(onlineCounts.keys()) });
+
     socket.on("chat:typing", async ({ to, typing }) => {
       const peerId = String(to || "");
       if (!peerId) return;

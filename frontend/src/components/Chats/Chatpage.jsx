@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import {
   Search, Phone, Video, Info, Paperclip, Smile,
   Send, ArrowLeft, MoreHorizontal, Check, CheckCheck,
-  X, ImageIcon, Download, FileText,
+  X, ImageIcon, Download, FileText, ExternalLink,
 } from "lucide-react";
 import { io } from "socket.io-client";
 import api from "@/app/api/apislice";
@@ -56,6 +56,12 @@ const downloadToDisk = async ({ url, fileName }) => {
   a.remove();
 
   return { blobUrl };
+};
+
+const downloadedKeyFor = (msg) => {
+  const url = String(msg?.fileUrl || "");
+  if (!url) return null;
+  return `chat:downloaded:${url}`;
 };
 
 const isLikelyImage = (msg) => {
@@ -141,6 +147,7 @@ const ContactItem = ({ contact, active, onClick }) => (
 const MessageBubble = ({ msg, isMe, contact }) => {
   const [revealedUrl, setRevealedUrl] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -148,19 +155,48 @@ const MessageBubble = ({ msg, isMe, contact }) => {
     };
   }, [revealedUrl]);
 
+  useEffect(() => {
+    const key = downloadedKeyFor(msg);
+    if (!key) return;
+    try {
+      const v = localStorage.getItem(key);
+      if (v === "1") setIsDownloaded(true);
+    } catch {
+      // ignore
+    }
+  }, [msg?.fileUrl]);
+
   const handleDownload = async () => {
     if (!msg.fileUrl || downloading) return;
     setDownloading(true);
     try {
       const { blobUrl } = await downloadToDisk({ url: msg.fileUrl, fileName: msg.fileName });
-      if (isLikelyImage(msg)) setRevealedUrl(blobUrl);
-      else setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+      const key = downloadedKeyFor(msg);
+      if (key) {
+        try {
+          localStorage.setItem(key, "1");
+        } catch {
+          // ignore
+        }
+      }
+
+      setIsDownloaded(true);
+
+      if (isLikelyImage(msg)) {
+        // reveal in-session using local blob URL
+        setRevealedUrl(blobUrl);
+      } else {
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+      }
     } catch (e) {
       // ignore
     } finally {
       setDownloading(false);
     }
   };
+
+  const canOpenFile = Boolean(msg?.fileUrl) && (isMe || isDownloaded);
+  const openUrl = msg?.fileUrl ? toAbsoluteUrl(msg.fileUrl) : "";
 
   return (
     <div className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
@@ -179,22 +215,31 @@ const MessageBubble = ({ msg, isMe, contact }) => {
             isLikelyImage(msg) ? (
               <div className="flex flex-col gap-2">
                 <div className="relative">
-                  <img
-                    src={revealedUrl || toAbsoluteUrl(msg.fileUrl)}
-                    alt={msg.fileName || "image"}
-                    className={`max-w-[260px] w-full rounded-xl object-cover ${revealedUrl ? "" : "blur-2xl"}`}
-                  />
-
-                  {!revealedUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <button
-                        onClick={handleDownload}
-                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-white/80 hover:bg-white text-slate-800"}`}
-                        title="Download"
-                      >
-                        <Download size={18} />
-                      </button>
-                    </div>
+                  {canOpenFile ? (
+                    <a href={openUrl} target="_blank" rel="noreferrer" className="block">
+                      <img
+                        src={revealedUrl || openUrl}
+                        alt={msg.fileName || "image"}
+                        className="max-w-[260px] w-full rounded-xl object-cover"
+                      />
+                    </a>
+                  ) : (
+                    <>
+                      <img
+                        src={openUrl}
+                        alt={msg.fileName || "image"}
+                        className="max-w-[260px] w-full rounded-xl object-cover blur-2xl"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <button
+                          onClick={handleDownload}
+                          className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-white/80 hover:bg-white text-slate-800"}`}
+                          title="Download"
+                        >
+                          <Download size={18} />
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -208,13 +253,35 @@ const MessageBubble = ({ msg, isMe, contact }) => {
                     </p>
                   </div>
 
-                  <button
-                    onClick={handleDownload}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
-                    title="Download"
-                  >
-                    <Download size={16} />
-                  </button>
+                  {isMe ? (
+                    <a
+                      href={openUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
+                      title="Open"
+                    >
+                      <ExternalLink size={16} />
+                    </a>
+                  ) : canOpenFile ? (
+                    <a
+                      href={openUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${"bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
+                      title="Open"
+                    >
+                      <ExternalLink size={16} />
+                    </a>
+                  ) : (
+                    <button
+                      onClick={handleDownload}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${"bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
+                      title="Download"
+                    >
+                      <Download size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -232,13 +299,35 @@ const MessageBubble = ({ msg, isMe, contact }) => {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleDownload}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
-                  title="Download"
-                >
-                  <Download size={16} />
-                </button>
+                {isMe ? (
+                  <a
+                    href={openUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${"bg-white/20 hover:bg-white/30 text-white"}`}
+                    title="Open"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                ) : canOpenFile ? (
+                  <a
+                    href={openUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${"bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
+                    title="Open"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                ) : (
+                  <button
+                    onClick={handleDownload}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${"bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-700 dark:text-slate-200"}`}
+                    title="Download"
+                  >
+                    <Download size={16} />
+                  </button>
+                )}
               </div>
             )
           ) : null}
@@ -330,6 +419,11 @@ export default function ChatPage() {
       transports: ["websocket"],
     });
     socketRef.current = socket;
+
+    socket.on("presence:snapshot", ({ onlineUserIds }) => {
+      const set = new Set((onlineUserIds || []).map((x) => String(x)));
+      setContacts((prev) => prev.map((c) => (set.has(String(c.id)) ? { ...c, online: true } : c)));
+    });
 
     socket.on("presence:update", ({ userId, online, lastSeen }) => {
       setContacts((prev) =>
