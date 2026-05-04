@@ -2,6 +2,8 @@ import Notification from "../models/Notification.js";
 import User from "../models/user.js";
 import Member from "../models/Members.js";
 import Issue from "../models/Issue.js";
+import Program from "../models/Program.js";
+import Enrollment from "../models/Enrollment.js";
 import Role from "../models/Role.js";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
 import { sendPushToUser } from "../utility/push.js";
@@ -9,19 +11,43 @@ import { checkUserPreference, isInQuietHours } from "./NotificationPreferencesCo
 
 const APP_NAME = process.env.APP_NAME || "JJU Reading Club";
 
-// Helper to determine if user is admin/superadmin
-async function isAdmin(userId) {
-  const user = await User.findById(userId)
-    .populate("role", "role plural")
-    .lean()
-    .exec();
+const getRoleNameFromReqUser = (u) =>
+  String(u?.role?.role || u?.role?.plural || u?.role || "")
+    .toLowerCase()
+    .trim();
 
-  const roleName = (user?.role?.role || user?.role?.plural || "").toLowerCase();
-  return /super\s*admin/i.test(roleName) || /admin/i.test(roleName);
+const isAdminRole = (roleName) => /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
+const isLibraryStaffRole = (roleName) => /^library\s*staff$/i.test(roleName);
+const isTeacherOrVolunteerRole = (roleName) => /^teacher$/i.test(roleName) || /^volunteer$/i.test(roleName);
+
+const ANNOUNCEMENT_AUDIENCES = [
+  // legacy
+  "all",
+  "members",
+  "inactive",
+  "overdue",
+  // new
+  "students",
+  "program_teachers",
+  "my_students",
+];
+
+async function findRoleByRegex(regex) {
+  return Role.findOne({ role: { $regex: regex } }).lean();
+}
+
+async function getTeacherProgramIds(teacherUserId) {
+  const teacherId = String(teacherUserId);
+  const programs = await Program.find({
+    $or: [{ teacherId }, { assistants: teacherId }],
+  })
+    .select("_id")
+    .lean();
+  return programs.map((p) => String(p._id));
 }
 
 
-async function getTargetAudience(targetAudience) {
+async function getTargetAudience(targetAudience, { senderUserId } = {}) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -38,6 +64,56 @@ async function getTargetAudience(targetAudience) {
       const memberRole = await Role.findOne({ role: { $regex: /^members?$/i } }).lean();
       if (!memberRole) return [];
       return User.find({ role: memberRole._id, status: "Active" })
+        .select("_id email member")
+        .populate("member", "first_name last_name email")
+        .lean()
+        .exec();
+    }
+
+    case "students": {
+      const studentRole = await findRoleByRegex(/^student$/i);
+      if (!studentRole) return [];
+      return User.find({ role: studentRole._id, status: "Active" })
+        .select("_id email member")
+        .populate("member", "first_name last_name email")
+        .lean()
+        .exec();
+    }
+
+    case "program_teachers": {
+      const volunteerRole = await findRoleByRegex(/^volunteers?$/i);
+      const teacherRole = await findRoleByRegex(/^teachers?$/i);
+
+      const roleIds = [volunteerRole?._id, teacherRole?._id].filter(Boolean);
+      if (!roleIds.length) return [];
+
+      return User.find({ role: { $in: roleIds }, status: "Active" })
+        .select("_id email member")
+        .populate("member", "first_name last_name email")
+        .lean()
+        .exec();
+    }
+
+    case "my_students": {
+      if (!senderUserId) return [];
+
+      const programIds = await getTeacherProgramIds(senderUserId);
+      if (!programIds.length) return [];
+
+      const enrollments = await Enrollment.find({
+        programId: { $in: programIds },
+        status: { $in: ["confirmed", "pending", "waitlisted"] },
+      })
+        .select("userId")
+        .lean();
+
+      const enrolledUserIds = Array.from(new Set(enrollments.map((e) => String(e.userId)).filter(Boolean)));
+      if (!enrolledUserIds.length) return [];
+
+      const studentRole = await findRoleByRegex(/^student$/i);
+      if (!studentRole) return [];
+
+      return User.find({ _id: { $in: enrolledUserIds }, role: studentRole._id, status: "Active" })
         .select("_id email member")
         .populate("member", "first_name last_name email")
         .lean()
@@ -96,11 +172,9 @@ export const createAnnouncement = async (req, res, next) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    // Check if user is admin
-    const adminCheck = await isAdmin(userId);
-    if (!adminCheck) {
-      return res.status(403).json({ message: "Only admins can create announcements" });
-    }
+    const roleName = getRoleNameFromReqUser(req.user);
+    const canSend = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    if (!canSend) return res.status(403).json({ message: "You are not allowed to send announcements" });
 
     const {
       title,
@@ -117,15 +191,26 @@ export const createAnnouncement = async (req, res, next) => {
       return res.status(400).json({ message: "Title and message are required" });
     }
 
-    const validAudiences = ["all", "members", "inactive", "overdue"];
-    if (!validAudiences.includes(targetAudience)) {
+    if (!ANNOUNCEMENT_AUDIENCES.includes(targetAudience)) {
       return res.status(400).json({
-        message: `Invalid target audience. Must be one of: ${validAudiences.join(", ")}`,
+        message: `Invalid target audience. Must be one of: ${ANNOUNCEMENT_AUDIENCES.join(", ")}`,
       });
     }
 
+    // Audience permission rules
+    const allowedAudiences = (() => {
+      if (isAdminRole(roleName)) return ANNOUNCEMENT_AUDIENCES;
+      if (isLibraryStaffRole(roleName)) return ["students", "program_teachers"];
+      if (isTeacherOrVolunteerRole(roleName)) return ["my_students"];
+      return [];
+    })();
+
+    if (!allowedAudiences.includes(targetAudience)) {
+      return res.status(403).json({ message: "You are not allowed to send to that audience" });
+    }
+
     // Get target users
-    const targetUsers = await getTargetAudience(targetAudience);
+    const targetUsers = await getTargetAudience(targetAudience, { senderUserId: userId });
 
     if (targetUsers.length === 0) {
       return res.status(400).json({ message: "No users found for the selected audience" });
@@ -226,18 +311,21 @@ export const getAnnouncementHistory = async (req, res, next) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const adminCheck = await isAdmin(userId);
-    if (!adminCheck) {
-      return res.status(403).json({ message: "Only admins can view announcement history" });
-    }
+    const roleName = getRoleNameFromReqUser(req.user);
+    const canView = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    if (!canView) return res.status(403).json({ message: "You are not allowed to view announcement history" });
 
     const { page = 1, limit = 20 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const perPage = Math.max(1, Math.min(50, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * perPage;
 
+    const baseMatch = isAdminRole(roleName)
+      ? { "meta.kind": "bulk-announcement" }
+      : { "meta.kind": "bulk-announcement", "meta.createdBy": userId };
+
     const announcements = await Notification.aggregate([
-      { $match: { "meta.kind": "bulk-announcement" } },
+      { $match: baseMatch },
       {
         $group: {
           _id: {
@@ -260,7 +348,7 @@ export const getAnnouncementHistory = async (req, res, next) => {
     ]).exec();
 
     const total = await Notification.aggregate([
-      { $match: { "meta.kind": "bulk-announcement" } },
+      { $match: baseMatch },
       {
         $group: {
           _id: {
@@ -291,19 +379,28 @@ export const getAudiencePreview = async (req, res, next) => {
     const userId = req.user?._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const adminCheck = await isAdmin(userId);
-    if (!adminCheck) {
-      return res.status(403).json({ message: "Only admins can preview audiences" });
-    }
+    const roleName = getRoleNameFromReqUser(req.user);
+    const canPreview = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    if (!canPreview) return res.status(403).json({ message: "You are not allowed to preview audiences" });
 
     const { targetAudience = "all" } = req.query;
 
-    const validAudiences = ["all", "members", "inactive", "overdue"];
-    if (!validAudiences.includes(targetAudience)) {
-      return res.status(400).json({ message: `Invalid target audience` });
+    if (!ANNOUNCEMENT_AUDIENCES.includes(targetAudience)) {
+      return res.status(400).json({ message: "Invalid target audience" });
     }
 
-    const targetUsers = await getTargetAudience(targetAudience);
+    const allowedAudiences = (() => {
+      if (isAdminRole(roleName)) return ANNOUNCEMENT_AUDIENCES;
+      if (isLibraryStaffRole(roleName)) return ["students", "program_teachers"];
+      if (isTeacherOrVolunteerRole(roleName)) return ["my_students"];
+      return [];
+    })();
+
+    if (!allowedAudiences.includes(targetAudience)) {
+      return res.status(403).json({ message: "You are not allowed to preview that audience" });
+    }
+
+    const targetUsers = await getTargetAudience(targetAudience, { senderUserId: userId });
 
     return res.json({
       data: {

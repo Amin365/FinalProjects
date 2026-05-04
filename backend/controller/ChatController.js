@@ -4,15 +4,22 @@ import Program from "../models/Program.js";
 import User from "../models/user.js";
 
 const getRoleNameFromUser = (user) =>
-  String(user?.role?.role || user?.role?.plural || "").toLowerCase();
+  String(user?.role?.role || user?.role?.plural || "").trim().toLowerCase();
 
-const isSuperOrAdminRole = (roleName) => /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
+const isSuperOrAdminRole = (roleName) =>
+  /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
 
-const isTeacherRole = (roleName) =>
-  roleName === "teacher" || roleName === "volunteer" || roleName === "library staff";
+const isLibraryStaffRole = (roleName) => /^library staff$/i.test(roleName);
 
-const isStudentRole = (roleName) => /^student$/i.test(roleName) || /^students$/i.test(roleName);
+const isVolunteerRole = (roleName) =>
+  /^volunteer$/i.test(roleName) || /^volunteers$/i.test(roleName);
 
+const isStudentRole = (roleName) =>
+  /^student$/i.test(roleName) || /^students$/i.test(roleName);
+
+// "staff-level" users who can chat everyone
+const isStaffOmniChatRole = (roleName) =>
+  isSuperOrAdminRole(roleName) || isLibraryStaffRole(roleName);
 const threadKeyFor = (a, b) => {
   const [x, y] = [String(a), String(b)].sort();
   return `${x}__${y}`;
@@ -70,6 +77,7 @@ const getTeacherProgramIds = async (teacherId) => {
   return programs.map((p) => String(p._id));
 };
 
+
 export const canChatWith = async (fromUserId, toUserId) => {
   const [fromUser, toUser] = await Promise.all([
     getUserByIdWithRole(fromUserId),
@@ -81,40 +89,37 @@ export const canChatWith = async (fromUserId, toUserId) => {
   const fromRole = getRoleNameFromUser(fromUser);
   const toRole = getRoleNameFromUser(toUser);
 
-  // Super admin/admin can chat anyone
-  if (isSuperOrAdminRole(fromRole)) return { allowed: true, fromUser, toUser };
+  // Super Admin/Admin/Library Staff can chat anyone
+  if (isStaffOmniChatRole(fromRole)) return { allowed: true, fromUser, toUser };
 
-  // Anyone can chat super/admin (so they can reach support)
-  if (isSuperOrAdminRole(toRole)) return { allowed: true, fromUser, toUser };
+  // Anyone can chat Super/Admin/Library Staff (support/staff)
+  if (isStaffOmniChatRole(toRole)) return { allowed: true, fromUser, toUser };
 
-  // Teacher/Volunteer/Library staff roles: chat ONLY their enrolled students (and admins via rule above)
-  if (isTeacherRole(fromRole)) {
-    if (isStudentRole(toRole)) {
-      const teacherPrograms = await getTeacherProgramIds(fromUserId);
-      if (!teacherPrograms.length) return { allowed: false, status: 403, reason: "Forbidden" };
+  // Volunteer: ONLY their enrolled students (via their programs)
+  if (isVolunteerRole(fromRole)) {
+    if (!isStudentRole(toRole)) return { allowed: false, status: 403, reason: "Forbidden" };
 
-      const match = await Enrollment.findOne({
-        userId: String(toUserId),
-        programId: { $in: teacherPrograms },
-        status: { $in: ["pending", "confirmed", "waitlisted"] },
-      })
-        .select("_id")
-        .lean();
+    const volunteerPrograms = await getTeacherProgramIds(fromUserId); // uses teacherId/assistants
+    if (!volunteerPrograms.length) return { allowed: false, status: 403, reason: "Forbidden" };
 
-      if (match) return { allowed: true, fromUser, toUser };
-      return { allowed: false, status: 403, reason: "Forbidden" };
-    }
+    const match = await Enrollment.findOne({
+      userId: String(toUserId),
+      programId: { $in: volunteerPrograms },
+      status: { $in: ["pending", "confirmed", "waitlisted"] },
+    })
+      .select("_id")
+      .lean();
 
-    return { allowed: false, status: 403, reason: "Forbidden" };
+    return match
+      ? { allowed: true, fromUser, toUser }
+      : { allowed: false, status: 403, reason: "Forbidden" };
   }
 
-  // Student roles: chat any other students, and their own program teacher/assistants (and admins via rule above)
+  // Student: chat other students, and their own program volunteer(s)
   if (isStudentRole(fromRole)) {
-    if (isStudentRole(toRole)) {
-      return { allowed: true, fromUser, toUser };
-    }
+    if (isStudentRole(toRole)) return { allowed: true, fromUser, toUser };
 
-    if (isTeacherRole(toRole)) {
+    if (isVolunteerRole(toRole)) {
       const myPrograms = await getStudentProgramIds(fromUserId);
       if (!myPrograms.length) return { allowed: false, status: 403, reason: "Forbidden" };
 
@@ -122,14 +127,15 @@ export const canChatWith = async (fromUserId, toUserId) => {
         .select("teacherId assistants")
         .lean();
 
-      const allowedTeacherIds = new Set();
+      const allowedVolunteerIds = new Set();
       programs.forEach((p) => {
-        if (p.teacherId) allowedTeacherIds.add(String(p.teacherId));
-        if (Array.isArray(p.assistants)) p.assistants.forEach((a) => allowedTeacherIds.add(String(a)));
+        if (p.teacherId) allowedVolunteerIds.add(String(p.teacherId));
+        if (Array.isArray(p.assistants)) p.assistants.forEach((a) => allowedVolunteerIds.add(String(a)));
       });
 
-      if (allowedTeacherIds.has(String(toUserId))) return { allowed: true, fromUser, toUser };
-      return { allowed: false, status: 403, reason: "Forbidden" };
+      return allowedVolunteerIds.has(String(toUserId))
+        ? { allowed: true, fromUser, toUser }
+        : { allowed: false, status: 403, reason: "Forbidden" };
     }
 
     return { allowed: false, status: 403, reason: "Forbidden" };
@@ -154,7 +160,7 @@ export const getChatContacts = async (req, res) => {
     if (isSuperOrAdminRole(myRole)) {
       const all = await User.find({ _id: { $ne: me } }).select("_id").lean();
       all.forEach((u) => contactIds.add(String(u._id)));
-    } else if (isTeacherRole(myRole)) {
+    } else if (isVolunteerRole(myRole)) {
       // teachers/volunteers/library staff: their students + admins
       const teacherPrograms = await getTeacherProgramIds(me);
       const studentEnrollments = teacherPrograms.length

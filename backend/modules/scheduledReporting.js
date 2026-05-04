@@ -4,7 +4,7 @@
  */
 
 import cron from "node-cron";
-// import DailyReport from "../models/DailyReport.js";
+import DailyReport from "../models/DailyReport.js";
 import Member from "../models/Members.js";
 import User from "../models/user.js";
 import Role from "../models/Role.js";
@@ -27,36 +27,46 @@ async function generateSummaryReport(period) {
 
   const matchStage = { readingDate: { $gte: fromDate, $lte: now } };
 
-  // const [reportStats, topReaders, activeMembers] = await Promise.all([
-  //   DailyReport.aggregate([
-  //     { $match: matchStage },
-  //     {
-  //       $group: {
-  //         _id: null,
-  //         totalReports: { $sum: 1 },
-  //         approvedReports: { $sum: { $cond: [{ $eq: ["$status", "Approved"] }, 1, 0] } },
-  //         pendingReports: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
-  //         pagesRead: { $sum: { $max: [0, { $subtract: ["$pagesTo", "$pagesFrom"] }] } },
-  //         minutesRead: { $sum: "$timeSpent" },
-  //         avgRating: { $avg: "$rating" },
-  //         uniqueReaders: { $addToSet: "$createdBy" },
-  //       },
-  //     },
-  //   ]),
-  //   DailyReport.aggregate([
-  //     { $match: matchStage },
-  //     {
-  //       $group: {
-  //         _id: "$createdBy",
-  //         reportsCount: { $sum: 1 },
-  //         pagesRead: { $sum: { $max: [0, { $subtract: ["$pagesTo", "$pagesFrom"] }] } },
-  //       },
-  //     },
-  //     { $sort: { reportsCount: -1 } },
-  //     { $limit: 5 },
-  //   ]),
-  //   Member.countDocuments({ status: "Active", isArchived: false }),
-  // ]);
+  const [reportStats, topReaders, activeMembers] = await Promise.all([
+    DailyReport.aggregate([
+      { $match: matchStage },
+      {
+        $addFields: {
+          pagesRead: { $max: [0, { $subtract: ["$pagesTo", "$pagesFrom"] }] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalReports: { $sum: 1 },
+          approvedReports: { $sum: { $cond: [{ $eq: ["$status", "Approved"] }, 1, 0] } },
+          pendingReports: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
+          pagesRead: { $sum: "$pagesRead" },
+          minutesRead: { $sum: "$timeSpent" },
+          avgRating: { $avg: "$rating" },
+          uniqueReaders: { $addToSet: "$createdBy" },
+        },
+      },
+    ]),
+    DailyReport.aggregate([
+      { $match: matchStage },
+      {
+        $addFields: {
+          pagesRead: { $max: [0, { $subtract: ["$pagesTo", "$pagesFrom"] }] },
+        },
+      },
+      {
+        $group: {
+          _id: "$createdBy",
+          reportsCount: { $sum: 1 },
+          pagesRead: { $sum: "$pagesRead" },
+        },
+      },
+      { $sort: { reportsCount: -1 } },
+      { $limit: 5 },
+    ]),
+    Member.countDocuments({ status: "Active", isArchived: false }),
+  ]);
 
   const stats = reportStats[0] || {
     totalReports: 0,

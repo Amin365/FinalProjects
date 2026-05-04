@@ -39,6 +39,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "docx": "^9.5.1",
     "dom-to-image-more": "^3.7.2",
     "framer-motion": "^12.25.0",
     "gsap": "^3.14.2",

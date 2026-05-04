@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Megaphone,
@@ -24,14 +24,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useSelector } from "react-redux";
 
 const TARGET_AUDIENCES = [
   { value: "all", label: "All Users", description: "All active users" },
-  { value: "members", label: "Members Only", description: "Users with Member role" },
-  { value: "moderators", label: "Moderators Only", description: "Users with Moderator role" },
-  { value: "inactive", label: "Inactive Users", description: "Users inactive for 7+ days" },
+  { value: "students", label: "All Students", description: "All student users" },
+  { value: "program_teachers", label: "Program Teachers", description: "All volunteers/teachers" },
+  { value: "my_students", label: "My Students", description: "Students enrolled in my programs" },
+  { value: "inactive", label: "Inactive Users", description: "Users linked to inactive members" },
   { value: "overdue", label: "Users with Overdue", description: "Users with overdue books" },
 ];
+
+const getRoleName = (authUser) => {
+  const roleSource = authUser?.role;
+  if (!roleSource) return "";
+  if (typeof roleSource === "object") {
+    return String(roleSource.role || roleSource.name || roleSource.title || "").toLowerCase().trim();
+  }
+  return String(roleSource).toLowerCase().trim();
+};
+
+const isAdminRoleName = (roleName = "") => /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -40,6 +53,27 @@ function formatDate(dateStr) {
 
 export default function AdminAnnouncements() {
   const qc = useQueryClient();
+  const authUser = useSelector((state) => state.auth?.user);
+  const roleName = useMemo(() => getRoleName(authUser), [authUser]);
+
+  const allowedAudienceValues = useMemo(() => {
+    if (isAdminRoleName(roleName)) {
+      return ["all", "students", "program_teachers", "inactive", "overdue"];
+    }
+    if (roleName === "library staff") {
+      return ["students", "program_teachers"];
+    }
+    if (roleName === "volunteer" || roleName === "teacher") {
+      return ["my_students"];
+    }
+    return [];
+  }, [roleName]);
+
+  const availableAudiences = useMemo(() => {
+    const allowed = new Set(allowedAudienceValues);
+    return TARGET_AUDIENCES.filter((a) => allowed.has(a.value));
+  }, [allowedAudienceValues]);
+
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [targetAudience, setTargetAudience] = useState("all");
@@ -48,6 +82,13 @@ export default function AdminAnnouncements() {
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (!allowedAudienceValues.length) return;
+    if (!allowedAudienceValues.includes(targetAudience)) {
+      setTargetAudience(allowedAudienceValues[0]);
+    }
+  }, [allowedAudienceValues, targetAudience]);
 
   // Audience preview
   const { data: previewData, isLoading: previewLoading } = useQuery({
@@ -58,7 +99,7 @@ export default function AdminAnnouncements() {
       });
       return res.data?.data;
     },
-    enabled: !!targetAudience,
+    enabled: !!targetAudience && allowedAudienceValues.includes(targetAudience),
   });
 
   // Announcement history
@@ -126,7 +167,7 @@ export default function AdminAnnouncements() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Compose Section */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-zinc-900/50 border-zinc-800">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Compose Announcement</CardTitle>
               <CardDescription>
@@ -142,10 +183,10 @@ export default function AdminAnnouncements() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Announcement title..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   maxLength={100}
                 />
-                <p className="text-xs text-zinc-500 mt-1">{title.length}/100 characters</p>
+                <p className="text-xs text-muted-foreground mt-1">{title.length}/100 characters</p>
               </div>
 
               {/* Message */}
@@ -156,10 +197,10 @@ export default function AdminAnnouncements() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Write your announcement message..."
                   rows={5}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                  className="w-full rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                   maxLength={1000}
                 />
-                <p className="text-xs text-zinc-500 mt-1">{message.length}/1000 characters</p>
+                <p className="text-xs text-muted-foreground mt-1">{message.length}/1000 characters</p>
               </div>
 
               {/* Target Audience */}
@@ -170,11 +211,11 @@ export default function AdminAnnouncements() {
                     <SelectValue placeholder="Select audience" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TARGET_AUDIENCES.map((aud) => (
+                    {availableAudiences.map((aud) => (
                       <SelectItem key={aud.value} value={aud.value}>
                         <div>
                           <span className="font-medium">{aud.label}</span>
-                          <span className="text-xs text-zinc-500 ml-2">{aud.description}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{aud.description}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -191,7 +232,7 @@ export default function AdminAnnouncements() {
                     value={ctaLabel}
                     onChange={(e) => setCtaLabel(e.target.value)}
                     placeholder="e.g., View Details"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     maxLength={50}
                   />
                 </div>
@@ -202,7 +243,7 @@ export default function AdminAnnouncements() {
                     value={ctaUrl}
                     onChange={(e) => setCtaUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               </div>
@@ -214,7 +255,7 @@ export default function AdminAnnouncements() {
                     type="checkbox"
                     checked={sendPush}
                     onChange={(e) => setSendPush(e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 rounded border-input bg-transparent dark:bg-input/30 accent-orange-500"
                   />
                   <span className="text-sm">Send Push Notification</span>
                 </label>
@@ -223,7 +264,7 @@ export default function AdminAnnouncements() {
                     type="checkbox"
                     checked={sendEmail}
                     onChange={(e) => setSendEmail(e.target.checked)}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+                    className="w-4 h-4 rounded border-input bg-transparent dark:bg-input/30 accent-orange-500"
                   />
                   <span className="text-sm">Send Email</span>
                 </label>
@@ -233,9 +274,9 @@ export default function AdminAnnouncements() {
               {sendEmail && (
                 <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                   <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-amber-200">
+                  <div className="text-sm text-amber-800 dark:text-amber-200">
                     <p className="font-medium">Email delivery notice</p>
-                    <p className="text-xs text-amber-300/80 mt-1">
+                    <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-1">
                       Sending emails to many users may take time and could be rate limited by the email provider.
                     </p>
                   </div>
@@ -266,7 +307,7 @@ export default function AdminAnnouncements() {
 
         {/* Preview Section */}
         <div className="space-y-4">
-          <Card className="bg-zinc-900/50 border-zinc-800">
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Eye className="h-4 w-4" />
@@ -286,24 +327,24 @@ export default function AdminAnnouncements() {
                     <Users className="h-8 w-8 text-orange-500" />
                     <div>
                       <p className="text-2xl font-bold">{previewData?.count || 0}</p>
-                      <p className="text-xs text-zinc-500">recipients</p>
+                      <p className="text-xs text-muted-foreground">recipients</p>
                     </div>
                   </div>
 
                   {previewData?.preview?.length > 0 && (
                     <div>
-                      <p className="text-xs text-zinc-500 mb-2">Sample recipients:</p>
+                      <p className="text-xs text-muted-foreground mb-2">Sample recipients:</p>
                       <div className="space-y-1.5">
                         {previewData.preview.map((user, i) => (
                           <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
+                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                               {user.name?.charAt(0) || "?"}
                             </span>
                             <span className="flex-1 truncate">{user.name || "Unknown"}</span>
                           </div>
                         ))}
                         {previewData.count > 5 && (
-                          <p className="text-xs text-zinc-600 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             +{previewData.count - 5} more...
                           </p>
                         )}
@@ -317,17 +358,17 @@ export default function AdminAnnouncements() {
 
           {/* Notification Preview */}
           {(title || message) && (
-            <Card className="bg-zinc-900/50 border-zinc-800">
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-zinc-800 rounded-lg p-3 border border-zinc-700">
+                <div className="bg-muted rounded-lg p-3 border border-border">
                   <div className="flex items-start gap-2">
                     <Megaphone className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{title || "Announcement Title"}</p>
-                      <p className="text-xs text-zinc-400 mt-1 line-clamp-3">
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
                         {message || "Your announcement message will appear here..."}
                       </p>
                       {ctaLabel && ctaUrl && (
@@ -343,7 +384,7 @@ export default function AdminAnnouncements() {
       </div>
 
       {/* History Section */}
-      <Card className="bg-zinc-900/50 border-zinc-800">
+      <Card>
         <CardHeader
           className="cursor-pointer"
           onClick={() => setShowHistory(!showHistory)}
@@ -369,17 +410,17 @@ export default function AdminAnnouncements() {
                 ))}
               </div>
             ) : history.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-6">
                 No announcements sent yet
               </p>
             ) : (
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-border">
                 {history.map((item, idx) => (
                   <div key={idx} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{item.title}</p>
-                        <p className="text-xs text-zinc-500 line-clamp-2 mt-1">
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                           {item.message}
                         </p>
                       </div>
@@ -387,7 +428,7 @@ export default function AdminAnnouncements() {
                         {item.targetAudience}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-zinc-500">
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span>{formatDate(item.createdAt)}</span>
                       <span>•</span>
                       <span>{item.recipientCount} recipients</span>
