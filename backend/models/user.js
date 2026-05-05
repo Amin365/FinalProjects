@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
 
     password: { type: String, required: true },
 
-    // ✅ Keep this (safe now)
+    //  Keep this (safe now)
     member_id: { type: String, unique: true, trim: true },
 
     status: {
@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔒 Password hashing
+//  Password hashing
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
@@ -95,7 +95,7 @@ userSchema.pre("save", async function () {
   }
 });
 
-// ✅ Compare password
+//  Compare password
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

@@ -64,7 +64,7 @@ const ResourceDetails = lazy(() => import("./components/Resources/ResourceDetail
 const StudentResources = lazy(() => import("./components/Resources/StudentResource"));
 const ProgrammeTables = lazy(() => import("./components/Programme/ProgramTable"));
 const ProgrammeCard=lazy(()=>import("./components/Programme/ProgrammeLists"))
-const EnrollmentTable = lazy(() => import("./components/Enrollments/Enrollmentstable"));
+const EnrollmentTable = lazy(() => import("./components/Enrollments/EnrollmentsTables"));
 const EnrollmentDetails = lazy(() => import("./components/Enrollments/EnrollmentDetails"));
 const Attendance = lazy(() => import("./components/Attendance/AttendancePage"));
 const TeamVolunteer= lazy(() => import("./components/Volunteer/TeamVal"));
