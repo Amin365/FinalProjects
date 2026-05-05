@@ -51,7 +51,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://161.35.125.74" 
+  "http://161.35.125.74" 
 ];
 
 app.use(
