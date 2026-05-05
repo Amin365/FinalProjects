@@ -47,7 +47,7 @@ export default function DashboardPage() {
               </button>
             </SidebarTrigger>
 
-            <h1 className=" md:text-lg text-base font-semibold"> degahbur public library</h1>
+            <h1 className=" md:text-lg text-base font-semibold">DPL</h1>
           </div>
 
           {/* rightside controls */}

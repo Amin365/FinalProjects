@@ -16,7 +16,7 @@ import { logAuthAction } from "../utility/auditLog.js";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
 
 export const loginLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
+  windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
@@ -25,7 +25,7 @@ export const loginLimiter = rateLimit({
     if (req.rateLimit && req.rateLimit.resetTime) {
       retryAfterMinutes = Math.ceil((req.rateLimit.resetTime - Date.now()) / 60000);
       if (retryAfterMinutes < 1) retryAfterMinutes = 1;
-    }s
+    }
     return res.status(429).json({
       error: true,
       message: `Too many login attempts. Try again in ${retryAfterMinutes} minute${retryAfterMinutes > 1 ? "s" : ""}.`,
@@ -34,37 +34,30 @@ export const loginLimiter = rateLimit({
 });
 
 export const registerUser = async (req, res) => {
- const { username, email, password, first_name, last_name } = req.body;
-  if (!username || !email || !password || !first_name || !last_name||!role) {
-    return res.status(400).json({ message: "all fields are required" });
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ message: "username, email and password are required" });
   }
 
   try {
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ message: "User already exists" });
 
-    // const salt = await bcrypt.genSalt(10);
-    // const hashedPassword = await bcrypt.hash(password, salt);
-const generateMemberId = () => {
-  return "MEM-" + Math.floor(100000 + Math.random() * 900000);
-};
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-const user = await User.create({
-  username,
-  email,
-  password, 
-  first_name,
-  last_name,
-  member_id: generateMemberId()
-});
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+    });
+
     if (user) {
       return res.status(201).json({
         _id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
-        first_name: user.first_name,
-        last_name: user.last_name
       });
     } else {
       return res.status(400).json({ message: "Invalid user data" });

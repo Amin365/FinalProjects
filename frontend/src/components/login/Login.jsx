@@ -47,7 +47,7 @@ export function LoginForm({ className, ...props }) {
     onSuccess: async (data) => {
       dispatch(setAuth({ user: data.user, token: data.token }))
       toast.success("Login successful")
-      // await enableNotifications(data.token)
+      await enableNotifications(data.token)
       navigate("/dashboard")
     },
     onError: (error) => {
@@ -61,10 +61,10 @@ export function LoginForm({ className, ...props }) {
     },
   })
 
-const onSubmit = (data) => {
-  setError(null)
-  loginMutation.mutate(data)
-}
+  const onSubmit = (data) => {
+    setError(null)
+    loginMutation.mutate(data)
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
