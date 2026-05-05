@@ -3,7 +3,7 @@ import store from "../store.js";
 
 const Api_URL = process.env.NODE_ENV === "production"
   ? "https://jjureadingclub.com/api"
-  : "http://localhost:5000/api";
+  : "http://localhost:5500/api";
 
 
 const api = axios.create({
