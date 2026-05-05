@@ -14,9 +14,9 @@ const getSocketUrl = () => {
   return base.replace(/\/api\/?$/, "");
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    HELPERS
-══════════════════════════════════════════════════════════════ */
+ */
 const fmtTime = () => new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
 const fmtBytes = (n) => {
@@ -110,9 +110,9 @@ const MsgStatus = ({ status }) => {
   return null;
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    CONTACT ITEM
-══════════════════════════════════════════════════════════════ */
+ */
 const ContactItem = ({ contact, active, onClick }) => (
   <div
     onClick={onClick}
@@ -141,9 +141,9 @@ const ContactItem = ({ contact, active, onClick }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    MESSAGE BUBBLE
-══════════════════════════════════════════════════════════════ */
+ */
 const MessageBubble = ({ msg, isMe, contact }) => {
   const [revealedUrl, setRevealedUrl] = useState(null);
   const [downloading, setDownloading] = useState(false);
@@ -348,9 +348,9 @@ const MessageBubble = ({ msg, isMe, contact }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* 
    MAIN CHAT PAGE
-══════════════════════════════════════════════════════════════ */
+ */
 export default function ChatPage() {
   const currentUser   = useSelector(s => s.auth.user);
   const token         = useSelector(s => s.auth.token);
