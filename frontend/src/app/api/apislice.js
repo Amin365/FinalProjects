@@ -2,10 +2,12 @@ import axios from "axios";
 import store from "../store.js";
 
 const Api_URL = process.env.NODE_ENV === "production"
-  ? "http://http://142.93.53.101/api"
+  ? "http://142.93.53.101/api"
   : "http://localhost:5000/api";
 
 
+
+  
 const api = axios.create({
   baseURL: Api_URL,
   headers: {
