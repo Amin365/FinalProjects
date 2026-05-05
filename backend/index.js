@@ -41,7 +41,9 @@ import AuditLogRouter from './routers/AuditLogRouter.js';
 import SystemHealthRouter from './routers/SystemHealthRouter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, ".env") });
+// Load env from repository root (../.env). This avoids relying on cwd and
+// fixes the previous incorrect backend/.env path.
+dotenv.config({ path: path.join(__dirname, "../.env") });
 const app = express()
 const PORT = process.env.PORT || 5000
 app.set("trust proxy", 1);
@@ -201,9 +203,61 @@ if (process.env.NODE_ENV === 'production') {
 app.use(NotFound)
 app.use(ErrorHandle);
 
-mongoose.connect(process.env.NODE_ENV === 'production' ? process.env.Mongo_atlas : process.env.MONGO_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB successfully')
+const getMongoUris = () => {
+  const localUri = String(process.env.MONGO_URI || "").trim();
+  const atlasUri = String(
+    process.env.MONGO_ATLAS_URI ||
+      process.env.MONGO_ATLAS ||
+      process.env.Mongo_atlas ||
+      ""
+  ).trim();
+
+  const preferAtlas = process.env.NODE_ENV === "production";
+  const primary = preferAtlas ? atlasUri : localUri;
+  const fallback = preferAtlas ? localUri : atlasUri;
+
+  return { primary, fallback };
+};
+
+const isLikelyDnsOrNetworkError = (err) => {
+  const cause = err?.cause;
+  const code = cause?.code || err?.code;
+  return code === "ENOTFOUND" || code === "EAI_AGAIN" || code === "ECONNREFUSED" || code === "ETIMEDOUT";
+};
+
+const connectMongoWithFallback = async () => {
+  const { primary, fallback } = getMongoUris();
+  const candidates = [primary, fallback].filter(Boolean);
+
+  if (candidates.length === 0) {
+    throw new Error("No MongoDB URI configured. Set MONGO_URI (local) and/or Mongo_atlas / MONGO_ATLAS_URI (Atlas).");
+  }
+
+  let lastErr;
+  for (const uri of candidates) {
+    try {
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 10_000,
+      });
+      return uri;
+    } catch (err) {
+      lastErr = err;
+
+      const usingAtlas = uri.includes("mongodb+srv://") || uri.includes("mongodb.net");
+      const hint = usingAtlas && isLikelyDnsOrNetworkError(err)
+        ? " (DNS/network error while using Atlas; trying fallback if available)"
+        : "";
+
+      console.log("❌ MongoDB Connection Error:", err?.message || err, hint);
+    }
+  }
+  throw lastErr;
+};
+
+connectMongoWithFallback()
+  .then((uriUsed) => {
+    const which = uriUsed.includes("mongodb+srv://") ? "Atlas" : "Local";
+    console.log(`✅ Connected to MongoDB successfully (${which})`);
     // start background scheduler for due/overdue notifications
     startIssueDueScheduler();
     startScheduledPublishing();
