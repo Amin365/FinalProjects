@@ -35,15 +35,7 @@ const TEAM = {
     { id: "v1",  name: "Volunteer",  role: "Curriculum",  initials: "V1",  group: "programs"  },
     { id: "v2",  name: "Volunteer",  role: "Curriculum",  initials: "V2",  group: "programs"  },
     { id: "v3",  name: "Volunteer",  role: "Events",      initials: "V3",  group: "programs"  },
-    { id: "v4",  name: "Volunteer",  role: "Events",      initials: "V4",  group: "programs"  },
-    { id: "v5",  name: "Volunteer",  role: "Outreach",    initials: "V5",  group: "community" },
-    { id: "v6",  name: "Volunteer",  role: "Outreach",    initials: "V6",  group: "community" },
-    { id: "v7",  name: "Volunteer",  role: "Social",      initials: "V7",  group: "community" },
-    { id: "v8",  name: "Volunteer",  role: "Social",      initials: "V8",  group: "community" },
-    { id: "v9",  name: "Volunteer",  role: "Library",     initials: "V9",  group: "resources" },
-    { id: "v10", name: "Volunteer",  role: "Library",     initials: "V10", group: "resources" },
-    { id: "v11", name: "Volunteer",  role: "Tech",        initials: "V11", group: "resources" },
-    { id: "v12", name: "Volunteer",  role: "Tech",        initials: "V12", group: "resources" },
+   
   ],
 };
 
@@ -116,7 +108,7 @@ const Step1 = ({ data, set }) => (
         <select className={`${inputCls} appearance-none`} value={data.gender} onChange={e => set("gender", e.target.value)}>
           <option value="">Select…</option>
           <option>Male</option><option>Female</option>
-          <option>Non-binary</option><option>Prefer not to say</option>
+        
         </select>
         <ChevronRight size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90" />
       </div>
