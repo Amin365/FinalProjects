@@ -413,14 +413,15 @@ export const uploadChatFile = async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ message: "file is required" });
 
-    const url = `/uploads/chat/${file.filename}`;
+    const url = file.path || file.secure_url || "";
+    if (!url) return res.status(500).json({ message: "Upload failed" });
 
     return res.status(201).json({
       data: {
         url,
         fileName: file.originalname,
         mimeType: file.mimetype,
-        size: file.size,
+        size: typeof file.size === "number" ? file.size : typeof file.bytes === "number" ? file.bytes : null,
       },
     });
   } catch (err) {

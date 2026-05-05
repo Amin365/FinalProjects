@@ -1,26 +1,34 @@
 import { Router } from "express";
 import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../utility/cloudinary.js";
 import { protect } from "../middleware/auth.js";
 import { getChatContacts, getChatMessages, postChatMessage, uploadChatFile } from "../controller/ChatController.js";
 
 const ChatRouter = Router();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadDir = path.join(__dirname, "../../uploads/chat");
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-	destination: (req, file, cb) => cb(null, uploadDir),
-	filename: (req, file, cb) => {
-		const safeOriginal = String(file.originalname || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
-		const ext = path.extname(safeOriginal).slice(0, 16);
-		const base = path.basename(safeOriginal, ext).slice(0, 64);
+const storage = new CloudinaryStorage({
+	cloudinary,
+	params: async (req, file) => {
+		const original = String(file.originalname || "file");
+		const safeBase = original
+			.replace(/\.[^/.]+$/, "")
+			.replace(/[^a-zA-Z0-9._-]/g, "_")
+			.slice(0, 64);
 		const unique = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-		cb(null, `${base || "file"}-${unique}${ext}`);
+		const mt = String(file.mimetype || "").toLowerCase();
+
+		const resourceType = mt.startsWith("image/") ? "image" : mt.startsWith("audio/") || mt.startsWith("video/") ? "video" : "raw";
+		const allowedFormats = mt.startsWith("image/")
+			? ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"]
+			: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "zip", "rar", "7z", "mp3", "wav", "m4a", "mp4", "mov", "avi", "webm"];
+
+		return {
+			folder: "Chat/uploads",
+			resource_type: resourceType,
+			allowed_formats: allowedFormats,
+			public_id: `${safeBase || "file"}-${unique}`,
+		};
 	},
 });
 
