@@ -26,16 +26,16 @@ import cookieParser from "cookie-parser";
 
 import path from 'path'
 import { fileURLToPath } from "url";  
-
-import { startDailyReportMissingScheduler } from "./modules/notifyMissingDailyReport.js"
 import DashboardRouter from "./routers/DashboardRouter.js"
 
-
-import { startScheduledReporting } from "./modules/scheduledReporting.js";
 import ResourceRouter from './routers/ResourceRouter.js';
 import { startScheduledPublishing } from "./modules/scheduledPublishing.js";
 import EnrollmentRouter from "./routers/enrollments.js";
 import AttendanceRouter from "./routers/AttendanceRouter.js";
+import ChatRouter from "./routers/ChatRouter.js";
+import ReportingRouter from "./routers/ReportingRouter.js";
+import DailyReportRouter from "./routers/DailyReportRouter.js";
+import { createHttpServerWithSockets } from "./modules/socket.js";
 // Phase 8 - Admin Governance and Safety
 import AuditLogRouter from './routers/AuditLogRouter.js';
 import SystemHealthRouter from './routers/SystemHealthRouter.js';
@@ -69,6 +69,10 @@ app.use(
   })
 );
 
+// Serve locally uploaded files (e.g. /uploads/<filename>)
+// Mounted AFTER cors() so downloads (fetch) work cross-origin in dev.
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -77,7 +81,7 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://images.unsplash.com", "https://i.pravatar.cc"],
-        connectSrc: ["'self'", "https://jjureadingclub.com"], // allow API calls
+        connectSrc: ["'self'", "https://jjureadingclub.com", "wss://jjureadingclub.com", "ws://localhost:5000"], // allow API + Socket.IO
         frameAncestors: ["'none'"],
       },
     },
@@ -123,6 +127,9 @@ app.use('/api',DashboardRouter)
 app.use('/api', ResourceRouter);
 app.use("/api", EnrollmentRouter);
 app.use("/api", AttendanceRouter);
+app.use("/api", ChatRouter);
+app.use("/api", DailyReportRouter);
+app.use("/api", ReportingRouter);
 //  - Admin Governance and Safety
 app.use('/api', AuditLogRouter);
 app.use('/api', SystemHealthRouter);
@@ -188,9 +195,8 @@ if (process.env.NODE_ENV === 'production') {
 
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
   });
+
 }
-
-
 
 app.use(NotFound)
 app.use(ErrorHandle);
@@ -200,13 +206,13 @@ mongoose.connect(process.env.NODE_ENV === 'production' ? process.env.Mongo_atlas
     console.log('✅ Connected to MongoDB successfully')
     // start background scheduler for due/overdue notifications
     startIssueDueScheduler();
-    startDailyReportMissingScheduler();
-    startScheduledReporting();
     startScheduledPublishing();
   })
   .catch((error) => console.log('❌ MongoDB Connection Error:', error));
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const { server } = createHttpServerWithSockets(app, { allowedOrigins });
+
+server.listen(PORT, () => {
+  console.log(`🚀 Server (HTTP + Socket.IO) running on port ${PORT}`);
 });
