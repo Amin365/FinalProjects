@@ -62,7 +62,6 @@ export function LoginForm({ className, ...props }) {
   })
 
 const onSubmit = (data) => {
-  console.log("SENDING DATA:", data); 
   setError(null)
   loginMutation.mutate(data)
 }
