@@ -28,10 +28,9 @@ async function findDefaultMemberRole() {
 async function findTeacherRole() {
   return Role.findOne({
     $or: [
-      { role: { $regex: /^library\s*staff$/i } },
-      { plural: { $regex: /^library\s*staff$/i } },
-      { role: { $regex: /^teacher$/i } },
-      { plural: { $regex: /^teachers?$/i } },
+    
+      { role: { $regex: /^Volunteer$/i } },
+      { plural: { $regex: /^Volunteer?$/i } },
     ],
   })
     .select("_id role plural")

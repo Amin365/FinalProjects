@@ -16,7 +16,7 @@ export function NavMain({ items = [] }) {
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400">
         <BookIcon className="h-4 w-4 text-slate-500 dark:text-gray-300" />
-        <span className="text-base">JJU Reading Club</span>
+        <span className="text-base">DPL</span>
       </SidebarGroupLabel>
 
       <SidebarMenu className="mt-12 space-y-3  text-base">

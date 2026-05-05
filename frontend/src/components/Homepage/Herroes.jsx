@@ -122,7 +122,7 @@ export default function HeroSection() {
                   as="p"
                   className="text-[17px] text-slate-500 dark:text-slate-400 leading-[1.8] max-w-xl mx-auto lg:mx-0 mb-10"
                 >
-                  Join our club to access a wealth of resources, connect with like-minded individuals, and make a positive impact in your community.
+                   connect with like-minded individuals, and make a positive impact in your community.
                 </TextEffect>
 
                 {/* CTA row */}

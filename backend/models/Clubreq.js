@@ -5,8 +5,8 @@ const  ClubreqSchema = new mongoose.Schema({
     FullName:{type:String,required:true,trim:true},
     email:{type:String,required:true,trim:true},
     phone:{type:String,required:true},
-    education_level:{type:String,required:true,trim:true},
-    institution:{type:String,required:true,trim:true},
+    education_level:{type:String,trim:true},
+    institution:{type:String,trim:true},
     
 
 
