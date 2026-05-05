@@ -49,11 +49,11 @@ const NotificationPreferences = lazy(() => import('./components/Notifications/No
 const AdminAnnouncements = lazy(() => import('./components/Notifications/AdminAnnouncements'));
 const AdminReportingCenter = lazy(() => import("./components/Reporting/AdminReportingCenter"));
 
-// Phase 7: Content Moderation and Resource Hub components
+//  7: Content Moderation and Resource Hub components
 
 const ResourceTable = lazy(() => import("./components/Resources/ResourceTable"));
 
-// Phase 8: Admin Governance and Safety components
+//  8: Admin Governance and Safety components
 const AuditLogViewer = lazy(() => import("./components/Admin/AuditLogViewer"));
 const SystemHealth = lazy(() => import("./components/Admin/SystemHealth"));
 const PermissionMatrix = lazy(() => import("./components/Admin/PermissionMatrix"));
@@ -68,6 +68,7 @@ const EnrollmentsTable = lazy(() => import("./components/Enrollments/Enrollments
 const EnrollmentDetails = lazy(() => import("./components/Enrollments/EnrollmentDetails"));
 const Attendance = lazy(() => import("./components/Attendance/AttendancePage"));
 const TeamVolunteer= lazy(() => import("./components/Volunteer/TeamVal"));
+const Chat=lazy(()=>import("./components/Chats/ChatPage"))
 function App() {
   return (
     <>
@@ -88,12 +89,12 @@ function App() {
            <Route path="/volunteer" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><TeamVolunteer /></Suspense>} />
  
         <Route path="/members/new" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><MembersFormPublic /></Suspense>} />
-        {/* Phase 7: Public Resource Hub routes */}
+        {/*  7: Public Resource Hub routes */}
       
  <Route path="/forgot-password" element= { <Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ForgotPassword /></Suspense>} />
 <Route path="/verify-otp" element= { <Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><VerifyOtp /></Suspense>} />
 <Route path="/reset-password" element= { <Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ResetPassword /></Suspense>} />
-{/* Phase 8: Invite-based password setup */}
+{/*  8: Invite-based password setup */}
 <Route path="/setup-password" element= { <Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><SetupPassword /></Suspense>} />
         {/* protected routes */}
         <Route
@@ -159,6 +160,7 @@ function App() {
  
   <Route path="enrollments" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><EnrollmentsTable /></Suspense>} />
   <Route path="enrollments/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><EnrollmentDetails /></Suspense>} />
+  <Route path="chats" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><Chat /></Suspense>} />
 
 
   <Route path="audit-log" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><AuditLogViewer /></Suspense>} />

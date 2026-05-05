@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-// import DailyReport from "../models/DailyReport.js";
+import DailyReport from "../models/DailyReport.js";
 import User from "../models/user.js";
 import Notification from "../models/Notification.js";
 import Role from "../models/Role.js";
@@ -27,6 +27,9 @@ function getYesterdayUTC(date) {
 export async function notifyUsersMissingDailyReport() {
   const today = toUTCDateOnly(new Date());
   const yesterday = getYesterdayUTC(today);
+  const todayEnd = new Date(today);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+  todayEnd.setUTCMilliseconds(todayEnd.getUTCMilliseconds() - 1);
 
   const membersRole = await Role.findOne({ role: /^(members|member)$/i })
     .select("_id")
@@ -48,12 +51,12 @@ export async function notifyUsersMissingDailyReport() {
     if (!users.length) continue;
 
     // Check if ANY user submitted report today or yesterday
-    // const hasRecentReport = await DailyReport.exists({
-    //   createdBy: { $in: users.map((u) => u._id) },
-    //   readingDate: { $in: [today, yesterday] },
-    // });
+    const hasRecentReport = await DailyReport.exists({
+      createdBy: { $in: users.map((u) => u._id) },
+      readingDate: { $gte: yesterday, $lte: todayEnd },
+    });
 
-    // if (hasRecentReport) continue;
+    if (hasRecentReport) continue;
 
     // Notify users
     for (const user of users) {

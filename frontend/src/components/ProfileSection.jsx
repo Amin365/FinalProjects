@@ -119,6 +119,12 @@ const MainHeader = () => {
                 Profile
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/dashboard/chats" className="flex items-center gap-2 py-1.5 text-sm">
+                <User2Icon className="size-4 text-gray-600" />
+                Chat
+              </Link>
+            </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 

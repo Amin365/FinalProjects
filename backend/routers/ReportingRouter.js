@@ -7,6 +7,8 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { protect } from "../middleware/auth.js";
 import {
+  getLibraryKpis,
+  getTopProgramsByEnrollment,
   getAdminReports,
   getTopReadersReport,
   getWeakestParticipation,
@@ -32,6 +34,10 @@ const reportingLimiter = rateLimit({
 
 // Admin reports with filters
 ReportingRouter.get("/reporting/admin-reports", reportingLimiter, protect, getAdminReports);
+
+// KPI reports (library + programs)
+ReportingRouter.get("/reporting/kpis", reportingLimiter, protect, getLibraryKpis);
+ReportingRouter.get("/reporting/top-programs", reportingLimiter, protect, getTopProgramsByEnrollment);
 
 // Top readers report
 ReportingRouter.get("/reporting/top-readers", reportingLimiter, protect, getTopReadersReport);

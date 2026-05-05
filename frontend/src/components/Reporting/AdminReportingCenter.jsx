@@ -1,41 +1,21 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
-  FileText,
-  Download,
   Filter,
-  TrendingUp,
-  TrendingDown,
-  Users,
   BookOpen,
-  Clock,
-  Star,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
   Loader2,
-  Calendar,
-  Building,
-  GraduationCap,
+  Users,
+  Download,
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api/apislice";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import {
   Table,
   TableBody,
@@ -44,8 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -54,22 +32,23 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Legend,
 } from "recharts";
 
-const STATUS_COLORS = {
-  Approved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  Pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  "Needs Improvement": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
-
-const CHART_COLORS = ["#10b981", "#f59e0b", "#ef4444", "#6366f1", "#8b5cf6"];
-const ALL_STATUS_VALUE = "__all_status__";
-const ALL_DEPARTMENTS_VALUE = "__all_departments__";
-const ALL_STUDY_YEARS_VALUE = "__all_study_years__";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  Table as DocxTable,
+  TableCell as DocxTableCell,
+  TableRow as DocxTableRow,
+  TextRun,
+  WidthType,
+} from "docx";
 
 function StatCard({ title, value, subtitle, icon: Icon, trend, trendValue, color = "text-orange-600" }) {
   return (
@@ -97,192 +76,194 @@ function StatCard({ title, value, subtitle, icon: Icon, trend, trendValue, color
 }
 
 export default function AdminReportingCenter() {
-  const queryClient = useQueryClient();
-  const user = useSelector((state) => state.auth?.user);
-  const [activeTab, setActiveTab] = useState("overview");
   const [filters, setFilters] = useState({
     from: "",
     to: "",
-    status: "",
-    department: "",
-    study_year: "",
-  });
-  const [isExporting, setIsExporting] = useState(false);
-  const roleName = String(user?.role?.role || user?.role?.plural || user?.role || "").toLowerCase();
-  const canReviewReports = /moderator|super\s*admin/i.test(roleName);
-
-  const reviewMutation = useMutation({
-    mutationFn: async ({ reportId, status }) => {
-      const res = await api.patch(`/daily-reports/${reportId}/status`, { status });
-      return res.data?.data || res.data;
-    },
-    onSuccess: (_, variables) => {
-      toast.success(`Report marked as ${variables.status}.`);
-      queryClient.invalidateQueries({ queryKey: ["reporting", "admin-reports"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "pending-approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["challenge"] });
-      queryClient.invalidateQueries({ queryKey: ["challenges"] });
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || "Failed to update report status.");
-    },
   });
 
-  // Fetch monthly comparison
-  const { data: comparisonData, isLoading: comparisonLoading, refetch: refetchComparison } = useQuery({
-    queryKey: ["reporting", "monthly-comparison", filters.department, filters.study_year],
-    queryFn: async () => {
-      const params = {};
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/monthly-comparison", { params });
-      return res.data?.data || {};
-    },
-    staleTime: 60_000,
-  });
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef(null);
 
-  // Fetch department comparison
-  const { data: deptData, isLoading: deptLoading } = useQuery({
-    queryKey: ["reporting", "department-comparison", filters.from, filters.to],
+  const { data: kpisResp, isLoading: kpisLoading } = useQuery({
+    queryKey: ["reporting", "kpis", filters.from, filters.to],
     queryFn: async () => {
       const params = {};
       if (filters.from) params.from = filters.from;
       if (filters.to) params.to = filters.to;
-      const res = await api.get("/reporting/department-comparison", { params });
-      return res.data?.data || [];
+      const res = await api.get("/reporting/kpis", { params });
+      return res.data?.data || null;
     },
     staleTime: 60_000,
   });
-
-  // Fetch top readers
-  const { data: topReadersData, isLoading: topReadersLoading } = useQuery({
-    queryKey: ["reporting", "top-readers", filters],
-    queryFn: async () => {
-      const params = { limit: 10 };
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/top-readers", { params });
-      return res.data?.data || [];
-    },
-    staleTime: 60_000,
-  });
-
-  // Fetch weakest participation
-  const { data: weakestData, isLoading: weakestLoading } = useQuery({
-    queryKey: ["reporting", "weakest-participation", filters],
-    queryFn: async () => {
-      const params = { limit: 10 };
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/weakest-participation", { params });
-      return res.data?.data || [];
-    },
-    staleTime: 60_000,
-  });
-
-  // Fetch reading health
-  const { data: healthData, isLoading: healthLoading } = useQuery({
-    queryKey: ["reporting", "reading-health", filters.department, filters.study_year],
-    queryFn: async () => {
-      const params = { daysInactive: 7 };
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/reading-health", { params });
-      return res.data;
-    },
-    staleTime: 60_000,
-  });
-
-  // Fetch report quality
-  const { data: qualityData, isLoading: qualityLoading } = useQuery({
-    queryKey: ["reporting", "report-quality", filters],
-    queryFn: async () => {
-      const params = {};
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/report-quality", { params });
-      return res.data?.data || {};
-    },
-    staleTime: 60_000,
-  });
-
-  // Fetch admin reports
-  const { data: adminReportsData, isLoading: reportsLoading, refetch: refetchReports } = useQuery({
-    queryKey: ["reporting", "admin-reports", filters],
-    queryFn: async () => {
-      const params = { limit: 50 };
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.status) params.status = filters.status;
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-      const res = await api.get("/reporting/admin-reports", { params });
-      return res.data || { data: [], total: 0 };
-    },
-    staleTime: 60_000,
-    enabled: activeTab === "reports",
-  });
-
-  const handleExportCSV = async (type) => {
-    try {
-      setIsExporting(true);
-      const params = { type };
-      if (filters.from) params.from = filters.from;
-      if (filters.to) params.to = filters.to;
-      if (filters.status) params.status = filters.status;
-      if (filters.department) params.department = filters.department;
-      if (filters.study_year) params.study_year = filters.study_year;
-
-      const res = await api.get("/reporting/export/csv", {
-        params,
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${type}-${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Export successful!");
-    } catch (err) {
-      toast.error("Export failed: " + (err.message || "Unknown error"));
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const clearFilters = () => {
-    setFilters({ from: "", to: "", status: "", department: "", study_year: "" });
+    setFilters({ from: "", to: "" });
   };
 
-  // Get unique departments from deptData
-  const departments = useMemo(() => {
-    return deptData?.map((d) => d.department).filter(Boolean) || [];
-  }, [deptData]);
+  const topPrograms = useMemo(() => kpisResp?.topPrograms || [], [kpisResp]);
+  const topProgram = kpisResp?.topProgram || null;
+  const isLoading = kpisLoading;
 
-  // Format rating distribution for pie chart
-  const ratingChartData = useMemo(() => {
-    if (!qualityData?.ratingDistribution) return [];
-    return Object.entries(qualityData.ratingDistribution).map(([key, value]) => ({
-      name: `${key} Star${key !== "1" ? "s" : ""}`,
-      value,
-    }));
-  }, [qualityData]);
+  const reportTitle = "Library & Programs Report";
+  const reportGeneratedAt = useMemo(() => new Date(), []);
+  const reportDateRangeLabel = useMemo(() => {
+    if (filters.from || filters.to) {
+      const from = filters.from || "(start)";
+      const to = filters.to || "(end)";
+      return `${from} → ${to}`;
+    }
+    return "Current month";
+  }, [filters.from, filters.to]);
 
-  const isLoading = comparisonLoading || deptLoading || topReadersLoading || weakestLoading || healthLoading || qualityLoading;
+  const reportFilenameBase = useMemo(() => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    return `report-${stamp}`;
+  }, []);
+
+  const downloadPdf = async () => {
+    if (!reportRef.current) return;
+    try {
+      setIsDownloading(true);
+      const dataUrl = await toPng(reportRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+
+      const pdf = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const props = pdf.getImageProperties(dataUrl);
+      const imgWidth = pageWidth;
+      const imgHeight = (props.height * imgWidth) / props.width;
+      const y = 0;
+
+      pdf.addImage(dataUrl, "PNG", 0, y, imgWidth, Math.min(imgHeight, pageHeight));
+      pdf.save(`${reportFilenameBase}.pdf`);
+    } catch (error) {
+      console.error("PDF download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const downloadDocx = async () => {
+    try {
+      setIsDownloading(true);
+
+      const k = kpisResp || {};
+      const kpiRows = [
+        ["Books issued", String(k.issuedBooks ?? 0)],
+        ["Programs", String(k.programs ?? 0)],
+        ["Enrollments", String(k.enrollments ?? 0)],
+        ["Volunteer requests", String(k.volunteerRequests ?? 0)],
+        ["Top program", topProgram?.title ? `${topProgram.title} (${topProgram.enrollments})` : "N/A"],
+      ];
+
+      const kpiTable = new DocxTable({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: kpiRows.map(
+          ([label, value]) =>
+            new DocxTableRow({
+              children: [
+                new DocxTableCell({
+                  width: { size: 55, type: WidthType.PERCENTAGE },
+                  children: [
+                    new Paragraph({
+                      children: [new TextRun({ text: label, bold: true })],
+                    }),
+                  ],
+                }),
+                new DocxTableCell({
+                  width: { size: 45, type: WidthType.PERCENTAGE },
+                  children: [new Paragraph(String(value))],
+                }),
+              ],
+            })
+        ),
+      });
+
+      const topProgramsTable = new DocxTable({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: "Program", bold: true })] })],
+              }),
+              new DocxTableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: "Enrollments", bold: true })] })],
+              }),
+            ],
+          }),
+          ...topPrograms.slice(0, 10).map(
+            (p) =>
+              new DocxTableRow({
+                children: [
+                  new DocxTableCell({
+                    children: [new Paragraph(p.title || p.programId || "-")],
+                  }),
+                  new DocxTableCell({
+                    children: [new Paragraph(String(p.enrollments ?? 0))],
+                  }),
+                ],
+              })
+          ),
+        ],
+      });
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {
+              page: {
+                margin: { top: 720, bottom: 720, left: 720, right: 720 },
+              },
+            },
+            children: [
+              new Paragraph({
+                text: reportTitle,
+                heading: HeadingLevel.TITLE,
+                alignment: AlignmentType.CENTER,
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `Date range: ${reportDateRangeLabel}`, bold: true }),
+                ],
+              }),
+              new Paragraph({
+                text: `Generated: ${reportGeneratedAt.toLocaleString()}`,
+              }),
+              new Paragraph({ text: "" }),
+              new Paragraph({ text: "KPIs", heading: HeadingLevel.HEADING_1 }),
+              kpiTable,
+              new Paragraph({ text: "" }),
+              new Paragraph({ text: "Top Programs", heading: HeadingLevel.HEADING_1 }),
+              topProgramsTable,
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${reportFilenameBase}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("DOCX download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -295,25 +276,26 @@ export default function AdminReportingCenter() {
             {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Comprehensive analytics and reporting dashboard
+            Monthly and range-based KPIs
           </p>
         </div>
+
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => handleExportCSV("reports")}
-            disabled={isExporting}
+            onClick={downloadPdf}
+            disabled={isDownloading || isLoading || !kpisResp}
           >
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-            Export Reports
+            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+            Download PDF
           </Button>
           <Button
             variant="outline"
-            onClick={() => handleExportCSV("leaderboard")}
-            disabled={isExporting}
+            onClick={downloadDocx}
+            disabled={isDownloading || isLoading || !kpisResp}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Export Leaderboard
+            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+            Download DOCX
           </Button>
         </div>
       </div>
@@ -346,61 +328,6 @@ export default function AdminReportingCenter() {
                 onChange={(e) => handleFilterChange("to", e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={filters.status}
-                onValueChange={(v) => handleFilterChange("status", v === ALL_STATUS_VALUE ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_STATUS_VALUE}>All Status</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Needs Improvement">Needs Improvement</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Department</Label>
-              <Select
-                value={filters.department}
-                onValueChange={(v) => handleFilterChange("department", v === ALL_DEPARTMENTS_VALUE ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Departments" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_DEPARTMENTS_VALUE}>All Departments</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Study Year</Label>
-              <Select
-                value={filters.study_year}
-                onValueChange={(v) => handleFilterChange("study_year", v === ALL_STUDY_YEARS_VALUE ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_STUDY_YEARS_VALUE}>All Years</SelectItem>
-                  <SelectItem value="1">1st Year</SelectItem>
-                  <SelectItem value="2">2nd Year</SelectItem>
-                  <SelectItem value="3">3rd Year</SelectItem>
-                  <SelectItem value="4">4th Year</SelectItem>
-                  <SelectItem value="5">5th Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-end">
               <Button variant="ghost" onClick={clearFilters} className="w-full">
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -411,616 +338,192 @@ export default function AdminReportingCenter() {
         </CardContent>
       </Card>
 
-      {/* Tabs */}
-      <Tabs className="mb-8" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="comparison">Comparison</TabsTrigger>
-          <TabsTrigger value="health">Health</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-        </TabsList>
+      {/* KPI Cards */}
+      {kpisResp && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard
+            title="Books Issued"
+            value={kpisResp.issuedBooks ?? 0}
+            subtitle="This month (default) or selected range"
+            icon={BookOpen}
+          />
+          <StatCard
+            title="Programs"
+            value={kpisResp.programs ?? 0}
+            subtitle="Programs starting in range"
+            icon={BarChart3}
+          />
+          <StatCard
+            title="Enrollments"
+            value={kpisResp.enrollments ?? 0}
+            subtitle="Students enrolled in range"
+            icon={Users}
+          />
+          <StatCard
+            title="Volunteer Requests"
+            value={kpisResp.volunteerRequests ?? 0}
+            subtitle="Registered to become teacher"
+            icon={Filter}
+          />
+          <StatCard
+            title="Top Program"
+            value={topProgram?.title || "N/A"}
+            subtitle={topProgram ? `${topProgram.enrollments} enrollments` : "No enrollments"}
+            icon={ArrowUpRight}
+          />
+        </div>
+      )}
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6 mt-4">
-          {/* Monthly Stats */}
-          {comparisonData?.currentMonth && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Total Reports"
-                value={comparisonData.currentMonth.totalReports}
-                subtitle={`${comparisonData.currentMonth.name} ${comparisonData.currentMonth.year}`}
-                icon={FileText}
-                trend={comparisonData.changes?.reportsChange >= 0 ? "up" : "down"}
-                trendValue={Math.abs(comparisonData.changes?.reportsChange || 0)}
-              />
-              <StatCard
-                title="Pages Read"
-                value={comparisonData.currentMonth.pagesRead?.toLocaleString()}
-                subtitle="This month"
-                icon={BookOpen}
-                trend={comparisonData.changes?.pagesChange >= 0 ? "up" : "down"}
-                trendValue={Math.abs(comparisonData.changes?.pagesChange || 0)}
-              />
-              <StatCard
-                title="Active Readers"
-                value={comparisonData.currentMonth.uniqueReaders}
-                subtitle="Unique contributors"
-                icon={Users}
-                trend={comparisonData.changes?.readersChange >= 0 ? "up" : "down"}
-                trendValue={Math.abs(comparisonData.changes?.readersChange || 0)}
-              />
-              <StatCard
-                title="Avg Rating"
-                value={comparisonData.currentMonth.avgRating?.toFixed(1) || "N/A"}
-                subtitle="Report quality"
-                icon={Star}
-              />
+      {/* Top Programs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowUpRight className="h-5 w-5 text-green-600" />
+              Top Programs by Enrollment
+            </CardTitle>
+            <CardDescription>Most enrolled programs in the selected range</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {kpisLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+              </div>
+            ) : topPrograms.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Program</TableHead>
+                    <TableHead className="text-right">Enrollments</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topPrograms.map((p, idx) => (
+                    <TableRow key={p.programId || idx}>
+                      <TableCell className="font-medium">{idx + 1}</TableCell>
+                      <TableCell className="font-medium">{p.title || p.programId}</TableCell>
+                      <TableCell className="text-right">{p.enrollments}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No enrollment data available</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowDownRight className="h-5 w-5" />
+              Enrollment Chart
+            </CardTitle>
+            <CardDescription>Visual ranking of program enrollments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topPrograms} layout="vertical" margin={{ left: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="title" width={140} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="enrollments" fill="#f97316" name="Enrollments" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Top Readers & Weakest Participation */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Top Readers */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  Top Readers
-                </CardTitle>
-                <CardDescription>Members with highest reading activity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topReadersLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>Member</TableHead>
-                        <TableHead className="text-right">Reports</TableHead>
-                        <TableHead className="text-right">Pages</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topReadersData?.slice(0, 5).map((reader, idx) => (
-                        <TableRow key={reader.user?._id || idx}>
-                          <TableCell className="font-medium">{idx + 1}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                {reader.user?.first_name} {reader.user?.last_name}
-                              </span>
-                              {reader.user?.department && (
-                                <span className="text-xs text-muted-foreground">
-                                  {reader.user.department}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">{reader.reportsCount}</TableCell>
-                          <TableCell className="text-right">{reader.pagesRead?.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Weakest Participation */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-amber-600" />
-                  Needs Attention
-                </CardTitle>
-                <CardDescription>Members with lowest participation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {weakestLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead className="text-right">Reports</TableHead>
-                        <TableHead className="text-right">Last Active</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {weakestData?.slice(0, 5).map((member, idx) => (
-                        <TableRow key={member.user?._id || idx}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{member.member?.name || "Unknown"}</span>
-                              {member.member?.department && (
-                                <span className="text-xs text-muted-foreground">
-                                  {member.member.department}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={member.reportsCount === 0 ? "destructive" : "secondary"}>
-                              {member.reportsCount}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">
-                            {member.daysSinceLastReport
-                              ? `${member.daysSinceLastReport}d ago`
-                              : "Never"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+      {/* Hidden A4 paper for downloads */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+        <div
+          ref={reportRef}
+          style={{ width: "794px", minHeight: "1123px" }}
+          className="bg-white text-slate-900 p-10"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">{reportTitle}</h2>
+              <p className="text-sm text-slate-600 mt-1">Date range: {reportDateRangeLabel}</p>
+              <p className="text-sm text-slate-600">Generated: {reportGeneratedAt.toLocaleString()}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium">Summary</p>
+              <p className="text-xs text-slate-600">KPIs + Top programs</p>
+            </div>
           </div>
 
-          {/* Report Quality */}
-          {qualityData && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5 text-yellow-500" />
-                    Report Quality Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <p className="text-3xl font-bold text-orange-600">{qualityData.avgRating?.toFixed(2) || "N/A"}</p>
-                      <p className="text-sm text-muted-foreground">Avg Rating</p>
-                    </div>
-                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <p className="text-3xl font-bold text-blue-600">{qualityData.avgTimeSpent?.toFixed(0) || 0}</p>
-                      <p className="text-sm text-muted-foreground">Avg Minutes</p>
-                    </div>
-                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <p className="text-3xl font-bold text-green-600">{qualityData.avgPagesRead?.toFixed(0) || 0}</p>
-                      <p className="text-sm text-muted-foreground">Avg Pages</p>
-                    </div>
-                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <p className="text-3xl font-bold text-purple-600">{qualityData.totalApprovedReports || 0}</p>
-                      <p className="text-sm text-muted-foreground">Approved Reports</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Rating Distribution</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={ratingChartData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) =>
-                            `${name}: ${(percent * 100).toFixed(0)}%`
-                          }
-                        >
-                          {ratingChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold">KPIs</h3>
+            <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-slate-200">
+                    <td className="p-3 font-medium">Books issued</td>
+                    <td className="p-3 text-right">{kpisResp?.issuedBooks ?? 0}</td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="p-3 font-medium">Programs</td>
+                    <td className="p-3 text-right">{kpisResp?.programs ?? 0}</td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="p-3 font-medium">Enrollments</td>
+                    <td className="p-3 text-right">{kpisResp?.enrollments ?? 0}</td>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="p-3 font-medium">Volunteer requests</td>
+                    <td className="p-3 text-right">{kpisResp?.volunteerRequests ?? 0}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-medium">Top program</td>
+                    <td className="p-3 text-right">
+                      {topProgram?.title ? `${topProgram.title} (${topProgram.enrollments})` : "N/A"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          )}
-        </TabsContent>
-
-        {/* Comparison Tab */}
-        <TabsContent value="comparison" className="space-y-6 mt-4">
-          {/* Monthly Comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Monthly Comparison
-              </CardTitle>
-              <CardDescription>Current month vs previous month performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {comparisonLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                </div>
-              ) : comparisonData?.currentMonth && comparisonData?.previousMonth ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-lg">{comparisonData.currentMonth.name} {comparisonData.currentMonth.year}</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <p className="text-2xl font-bold text-green-600">{comparisonData.currentMonth.totalReports}</p>
-                        <p className="text-xs text-muted-foreground">Total Reports</p>
-                      </div>
-                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-2xl font-bold text-blue-600">{comparisonData.currentMonth.pagesRead?.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Pages Read</p>
-                      </div>
-                      <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                        <p className="text-2xl font-bold text-purple-600">{comparisonData.currentMonth.uniqueReaders}</p>
-                        <p className="text-xs text-muted-foreground">Active Readers</p>
-                      </div>
-                      <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                        <p className="text-2xl font-bold text-yellow-600">{comparisonData.currentMonth.avgRating?.toFixed(1)}</p>
-                        <p className="text-xs text-muted-foreground">Avg Rating</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-lg text-muted-foreground">{comparisonData.previousMonth.name} {comparisonData.previousMonth.year}</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <p className="text-2xl font-bold">{comparisonData.previousMonth.totalReports}</p>
-                        <p className="text-xs text-muted-foreground">Total Reports</p>
-                      </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <p className="text-2xl font-bold">{comparisonData.previousMonth.pagesRead?.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Pages Read</p>
-                      </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <p className="text-2xl font-bold">{comparisonData.previousMonth.uniqueReaders}</p>
-                        <p className="text-xs text-muted-foreground">Active Readers</p>
-                      </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <p className="text-2xl font-bold">{comparisonData.previousMonth.avgRating?.toFixed(1)}</p>
-                        <p className="text-xs text-muted-foreground">Avg Rating</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No data available</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Department Comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Department Comparison
-              </CardTitle>
-              <CardDescription>Reading activity across departments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {deptLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                </div>
-              ) : deptData?.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={deptData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="department" tick={{ fontSize: 12 }} />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="totalReports" fill="#f97316" name="Reports" />
-                        <Bar dataKey="activeReaders" fill="#3b82f6" name="Active Readers" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Department</TableHead>
-                        <TableHead className="text-right">Members</TableHead>
-                        <TableHead className="text-right">Active</TableHead>
-                        <TableHead className="text-right">Reports</TableHead>
-                        <TableHead className="text-right">Pages</TableHead>
-                        <TableHead className="text-right">Avg Rating</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {deptData.map((dept) => (
-                        <TableRow key={dept.department}>
-                          <TableCell className="font-medium">{dept.department}</TableCell>
-                          <TableCell className="text-right">{dept.totalMembers}</TableCell>
-                          <TableCell className="text-right">{dept.activeReaders}</TableCell>
-                          <TableCell className="text-right">{dept.totalReports}</TableCell>
-                          <TableCell className="text-right">{dept.pagesRead?.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">{dept.avgRating?.toFixed(1)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No department data available</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Health Tab */}
-        <TabsContent value="health" className="space-y-6 mt-4">
-          {/* Health Summary */}
-          {healthData?.summary && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <StatCard
-                title="Inactive Readers"
-                value={healthData.summary.totalInactive}
-                subtitle="No activity in 7+ days"
-                icon={AlertTriangle}
-                color="text-amber-600"
-              />
-              <StatCard
-                title="Never Reported"
-                value={healthData.summary.totalNoReports}
-                subtitle="Members with no reports"
-                icon={XCircle}
-                color="text-red-600"
-              />
-              <StatCard
-                title="Low Streak"
-                value={healthData.summary.totalLowStreak}
-                subtitle="Streak ≤ 2 days"
-                icon={TrendingDown}
-                color="text-purple-600"
-              />
-              <StatCard
-                title="Overdue + Inactive"
-                value={healthData.summary.totalOverdueInactive}
-                subtitle="Need immediate attention"
-                icon={AlertTriangle}
-                color="text-red-600"
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Inactive Readers */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  Inactive Readers
-                </CardTitle>
-                <CardDescription>No reading activity for 7+ days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {healthLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                  </div>
-                ) : healthData?.data?.inactiveReaders?.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead className="text-right">Days Inactive</TableHead>
-                        <TableHead className="text-right">Total Reports</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {healthData.data.inactiveReaders.slice(0, 10).map((item, idx) => (
-                        <TableRow key={item.user?._id || idx}>
-                          <TableCell>
-                            <span className="font-medium">{item.member?.name || "Unknown"}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="destructive">{item.daysSinceReport}d</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">{item.totalReports}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">No inactive readers found</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Never Reported */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-600" />
-                  Never Reported
-                </CardTitle>
-                <CardDescription>Members who haven't submitted any reports</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {healthLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                  </div>
-                ) : healthData?.data?.noReports?.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Department</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {healthData.data.noReports.slice(0, 10).map((item, idx) => (
-                        <TableRow key={item.user?._id || idx}>
-                          <TableCell className="font-medium">{item.member?.name || "Unknown"}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {item.member?.department || "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">All members have submitted reports</p>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Overdue + Inactive */}
-          {healthData?.data?.overdueInactive?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                  Overdue Books + Inactive Readers
-                </CardTitle>
-                <CardDescription>Critical: Members with overdue books who are also inactive</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Book</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {healthData.data.overdueInactive.map((item, idx) => (
-                      <TableRow key={item._id || idx}>
-                        <TableCell className="font-medium">
-                          {item.member?.first_name} {item.member?.last_name}
-                        </TableCell>
-                        <TableCell>{item.book?.title || "Unknown"}</TableCell>
-                        <TableCell>{item.returnDate ? new Date(item.returnDate).toLocaleDateString() : "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant="destructive">{item.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+          <div className="mt-10">
+            <h3 className="text-lg font-semibold">Top Programs by Enrollment</h3>
+            <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="p-3 text-left font-semibold">Program</th>
+                    <th className="p-3 text-right font-semibold">Enrollments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(topPrograms || []).slice(0, 10).map((p) => (
+                    <tr key={p.programId} className="border-b border-slate-200 last:border-b-0">
+                      <td className="p-3">{p.title || p.programId}</td>
+                      <td className="p-3 text-right">{p.enrollments ?? 0}</td>
+                    </tr>
+                  ))}
+                  {(!topPrograms || topPrograms.length === 0) && (
+                    <tr>
+                      <td className="p-3 text-slate-600" colSpan={2}>
+                        No enrollment data available
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-6 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Daily Reports
-              </CardTitle>
-              <CardDescription>
-                {adminReportsData?.total || 0} reports found
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {reportsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
-                </div>
-              ) : adminReportsData?.data?.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Book</TableHead>
-                      <TableHead className="text-right">Pages</TableHead>
-                      <TableHead className="text-right">Time</TableHead>
-                      <TableHead className="text-right">Rating</TableHead>
-                      <TableHead>Status</TableHead>
-                      {canReviewReports && <TableHead className="text-right">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {adminReportsData.data.map((report) => (
-                      <TableRow key={report._id}>
-                        <TableCell className="text-sm">
-                          {new Date(report.readingDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {report.createdBy?.first_name} {report.createdBy?.last_name}
-                            </span>
-                            {report.memberDepartment && (
-                              <span className="text-xs text-muted-foreground">
-                                {report.memberDepartment}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {report.book?.title || "Unknown"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {report.pagesRead || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {report.timeSpent}m
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            {report.rating}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={STATUS_COLORS[report.status] || ""}>
-                            {report.status}
-                          </Badge>
-                        </TableCell>
-                        {canReviewReports && (
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={reviewMutation.isPending || report.status === "Approved"}
-                                onClick={() => reviewMutation.mutate({ reportId: report._id, status: "Approved" })}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={reviewMutation.isPending || report.status === "Needs Improvement"}
-                                onClick={() => reviewMutation.mutate({ reportId: report._id, status: "Needs Improvement" })}
-                              >
-                                Needs work
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No reports found</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <div className="mt-12 pt-6 border-t border-slate-200">
+            <p className="text-xs text-slate-500">Generated by the Admin Reporting Center</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

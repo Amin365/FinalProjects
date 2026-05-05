@@ -63,6 +63,7 @@ const LIBRARY_STAFF_ROUTES = new Set([
   "/dashboard/issues",
   "/dashboard/issues/request",
   "/dashboard/reservations",
+  "/dashboard/announcements",
   "/dashboard/notifications",
   "/dashboard/notification-settings",
   "/dashboard/studentsresources",
@@ -85,6 +86,7 @@ const VOLUNTEER_ROUTES = new Set([
   "/dashboard/programmecards",
   "/dashboard/attendance",
   "/dashboard/resources",
+  "/dashboard/announcements",
   "/dashboard/notifications",
   "/dashboard/notification-settings",
 ])
