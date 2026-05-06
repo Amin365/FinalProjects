@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Calendar,
   Megaphone,
+  FileChartColumn
 } from "lucide-react";
 import {
   Card,
