@@ -41,8 +41,10 @@ router.post("/enrollments/:id/reject", manageEnrollments, rejectEnrollment);
 // GET /programs/:id/enrollments  (admin)
 router.get("/programs/:id/enrollments", viewEnrollments, getEnrollmentsForProgram);
 
-// GET /users/:userId/enrollments  or GET /me/enrollments (if you set req.user)
-router.get("/users/:userId/enrollments", viewEnrollments, getEnrollmentsForUser);
+// GET /users/:userId/enrollments
+// Any authenticated user can read their own enrollments. The controller uses
+// req.user first, so this does not expose another user's data to students.
+router.get("/users/:userId/enrollments", protect, getEnrollmentsForUser);
 
 // POST /enrollments/:id/cancel
 router.post("/enrollments/:id/cancel", cancelEnrollment);

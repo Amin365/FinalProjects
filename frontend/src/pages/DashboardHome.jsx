@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { useSelector } from "react-redux";
 import {
   BookOpen,
   BookCheck,
@@ -21,6 +22,7 @@ import {
   Award,
   ChevronRight,
   Calendar,
+  Megaphone,
 } from "lucide-react";
 import {
   Card,
@@ -34,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/app/api/apislice";
 import ChartsDashboard from "./ChartsDashboard";
 import { extractArrayPayload } from "@/lib/utils";
+import { getRoleName } from "@/lib/permissions";
 
 /*  helpers  */
 
@@ -483,7 +486,272 @@ function RecentAchievementsWidget() {
 
 /*  main page  */
 
-export default function DashboardHome() {
+const getProgramList = (data) => extractArrayPayload(data?.data || data);
+const getEnrollmentList = (data) => extractArrayPayload(data?.data || data);
+
+function RoleHeader({ eyebrow, title, description, actionLabel, actionTo }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{eyebrow}</p>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">{title}</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+      {actionLabel && actionTo && (
+        <Link
+          to={actionTo}
+          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+        >
+          {actionLabel}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function EmptyRoleState({ title, description }) {
+  return (
+    <div className="rounded-lg border border-dashed p-6 text-center">
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function TeacherDashboardHome() {
+  const programsQ = useQuery({
+    queryKey: ["teacher-dashboard", "programs"],
+    queryFn: async () => {
+      const res = await api.get("/programs", { params: { page: 1, limit: 100, mine: true } });
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const enrollmentsQ = useQuery({
+    queryKey: ["teacher-dashboard", "enrollments"],
+    queryFn: async () => {
+      const res = await api.get("/enrollments", { params: { page: 1, limit: 100 } });
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const attendanceQ = useQuery({
+    queryKey: ["teacher-dashboard", "attendance-programs"],
+    queryFn: async () => {
+      const res = await api.get("/attendance/programs");
+      return res.data;
+    },
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const programs = getProgramList(programsQ.data);
+  const enrollments = getEnrollmentList(enrollmentsQ.data);
+  const attendancePrograms = getProgramList(attendanceQ.data);
+  const pending = enrollments.filter((item) => item.status === "pending").length;
+  const confirmed = enrollments.filter((item) => item.status === "confirmed").length;
+  const activePrograms = programs.filter((item) => item.status === "active").length;
+
+  return (
+    <div className="space-y-6 px-4 py-6 lg:px-6">
+      <RoleHeader
+        eyebrow="Teacher dashboard"
+        title="Your programs and learners"
+        description="Track the programs assigned to you, review new enrollment requests, and jump into attendance or resources without the admin dashboard noise."
+        actionLabel="Open My Programs"
+        actionTo="/dashboard/programmecards"
+      />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard title="My Programs" value={programs.length} icon={FileChartColumn} colorClass="text-blue-500" loading={programsQ.isLoading} />
+        <StatCard title="Active Programs" value={activePrograms} icon={CheckCircle} colorClass="text-emerald-500" loading={programsQ.isLoading} />
+        <StatCard title="Pending Enrollments" value={pending} icon={Clock} colorClass="text-yellow-500" loading={enrollmentsQ.isLoading} />
+        <StatCard title="Confirmed Students" value={confirmed} icon={Users} colorClass="text-purple-500" loading={enrollmentsQ.isLoading} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent Enrollment Requests</CardTitle>
+            <CardDescription>Students waiting for review in your assigned programs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {enrollmentsQ.isLoading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            ) : enrollments.length ? (
+              <div className="space-y-3">
+                {enrollments.slice(0, 5).map((item) => (
+                  <Link key={item._id} to={`/dashboard/enrollments/${item._id}`} className="flex items-center justify-between rounded-md border p-3 transition hover:bg-muted/50">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.formData?.firstName || "Learner"} {item.formData?.lastName || ""}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.programId?.title || "Program enrollment"}</p>
+                    </div>
+                    <Badge variant={item.status === "pending" ? "secondary" : "outline"}>{item.status}</Badge>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyRoleState title="No enrollment requests yet" description="New public enrollments for your programs will appear here." />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Teaching Shortcuts</CardTitle>
+            <CardDescription>Fast access to common teacher actions</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <Link className="rounded-lg border p-4 transition hover:bg-muted/50" to="/dashboard/enrollments">
+              <UserCheck className="mb-3 h-5 w-5 text-emerald-500" />
+              <p className="text-sm font-semibold">Review enrollments</p>
+              <p className="mt-1 text-xs text-muted-foreground">Approve or reject learner requests.</p>
+            </Link>
+            <Link className="rounded-lg border p-4 transition hover:bg-muted/50" to="/dashboard/attendance">
+              <ClipboardList className="mb-3 h-5 w-5 text-blue-500" />
+              <p className="text-sm font-semibold">Take attendance</p>
+              <p className="mt-1 text-xs text-muted-foreground">{attendanceQ.isError ? "Attendance permission needed." : `${attendancePrograms.length} program${attendancePrograms.length === 1 ? "" : "s"} ready.`}</p>
+            </Link>
+            <Link className="rounded-lg border p-4 transition hover:bg-muted/50" to="/dashboard/resources">
+              <BookOpen className="mb-3 h-5 w-5 text-orange-500" />
+              <p className="text-sm font-semibold">Manage resources</p>
+              <p className="mt-1 text-xs text-muted-foreground">Share files for your programs.</p>
+            </Link>
+            <Link className="rounded-lg border p-4 transition hover:bg-muted/50" to="/dashboard/announcements">
+              <Megaphone className="mb-3 h-5 w-5 text-purple-500" />
+              <p className="text-sm font-semibold">Message students</p>
+              <p className="mt-1 text-xs text-muted-foreground">Send updates to your learners.</p>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function StudentDashboardHome() {
+  const enrollmentsQ = useQuery({
+    queryKey: ["student-dashboard", "my-enrollments"],
+    queryFn: async () => {
+      const res = await api.get("/users/me/enrollments");
+      return res.data;
+    },
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const programsQ = useQuery({
+    queryKey: ["student-dashboard", "programs"],
+    queryFn: async () => {
+      const res = await api.get("/programs", { params: { page: 1, limit: 6 } });
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const enrollments = getEnrollmentList(enrollmentsQ.data);
+  const programs = getProgramList(programsQ.data);
+  const pending = enrollments.filter((item) => item.status === "pending").length;
+  const confirmed = enrollments.filter((item) => item.status === "confirmed").length;
+  const waitlisted = enrollments.filter((item) => item.status === "waitlisted").length;
+
+  return (
+    <div className="space-y-6 px-4 py-6 lg:px-6">
+      <RoleHeader
+        eyebrow="Student dashboard"
+        title="Your learning space"
+        description="Follow your program enrollments, browse available programs, and keep your library activity close at hand."
+        actionLabel="Browse Programs"
+        actionTo="/dashboard/programmecards"
+      />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard title="My Enrollments" value={enrollments.length} icon={ClipboardList} colorClass="text-blue-500" loading={enrollmentsQ.isLoading} />
+        <StatCard title="Confirmed" value={confirmed} icon={CheckCircle} colorClass="text-emerald-500" loading={enrollmentsQ.isLoading} />
+        <StatCard title="Pending" value={pending} icon={Clock} colorClass="text-yellow-500" loading={enrollmentsQ.isLoading} />
+        <StatCard title="Waitlisted" value={waitlisted} icon={AlertTriangle} colorClass="text-orange-500" loading={enrollmentsQ.isLoading} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">My Program Status</CardTitle>
+            <CardDescription>Where your enrollments currently stand</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {enrollmentsQ.isLoading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            ) : enrollments.length ? (
+              <div className="space-y-3">
+                {enrollments.slice(0, 5).map((item) => (
+                  <div key={item._id} className="flex items-center justify-between rounded-md border p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.programId?.title || item.formData?.programTitle || "Program"}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.formData?.email || "Enrollment request"}</p>
+                    </div>
+                    <Badge variant={item.status === "confirmed" ? "default" : "secondary"}>{item.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyRoleState title="No enrollments yet" description="Choose a program and submit your enrollment request." />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Available Programs</CardTitle>
+            <CardDescription>Open learning options from the library</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {programsQ.isLoading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            ) : programs.length ? (
+              <div className="space-y-3">
+                {programs.slice(0, 5).map((program) => (
+                  <Link key={program._id} to="/dashboard/programmecards" className="flex items-center justify-between rounded-md border p-3 transition hover:bg-muted/50">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{program.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{program.teacher?.fullName || "Program instructor"}</p>
+                    </div>
+                    <Badge variant="outline">{program.status}</Badge>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyRoleState title="No programs available" description="Available programs will show here once published." />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ActiveChallengesWidget />
+        <RecentAchievementsWidget />
+      </div>
+    </div>
+  );
+}
+
+function RoleAwareDashboardHome() {
+  const authUser = useSelector((state) => state.auth?.user);
+  const roleName = getRoleName(authUser);
+
+  if (roleName === "teacher" || roleName === "volunteer" || roleName === "library staff") {
+    return <TeacherDashboardHome />;
+  }
+
+  if (roleName === "student" || roleName === "students") {
+    return <StudentDashboardHome />;
+  }
+
+  return <AdminDashboardHome />;
+}
+
+function AdminDashboardHome() {
   const statsQ = useQuery({
     queryKey: ["dashboard", "stats"],
     queryFn: () => api.get("/dashboard/stats"),
@@ -693,3 +961,5 @@ export default function DashboardHome() {
     </div>
   );
 }
+
+export default RoleAwareDashboardHome;
