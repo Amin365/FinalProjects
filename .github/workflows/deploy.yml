@@ -5,7 +5,8 @@ env:
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - "main"
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -30,10 +31,14 @@ jobs:
             set -e
 
             APP_PATH="${{ secrets.VPS_APP_PATH }}"
-            if [ -z "$APP_PATH" ]; then APP_PATH="/root/FinalProjects"; fi
+            if [ -z "$APP_PATH" ]; then
+              APP_PATH="/root/FinalProjects"
+            fi
 
             PM2_APP_NAME="${{ secrets.PM2_APP_NAME }}"
-            if [ -z "$PM2_APP_NAME" ]; then PM2_APP_NAME="backend"; fi
+            if [ -z "$PM2_APP_NAME" ]; then
+              PM2_APP_NAME="backend"
+            fi
 
             echo "==> Go to app directory"
             cd "$APP_PATH"
@@ -48,23 +53,29 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
-            echo "==> Install dependencies"
+            echo "==> Install backend dependencies"
             npm ci
+
+            echo "==> Install frontend dependencies"
             npm ci --prefix frontend
 
-            echo "==> Build frontend"
+            echo "==> Clean previous frontend build"
+            rm -rf frontend/dist
+
+            echo "==> Build frontend with memory optimization"
+            export NODE_OPTIONS="--max-old-space-size=768"
             npm run build --prefix frontend
 
             echo "==> Copy build to Nginx root"
             rm -rf /var/www/html/*
             cp -r frontend/dist/* /var/www/html/
 
-            echo "==> Fix permissions (optional but safe)"
+            echo "==> Fix permissions"
             chown -R www-data:www-data /var/www/html
             chmod -R 755 /var/www/html
 
-            echo "==> Restart backend (pm2)"
+            echo "==> Restart backend"
             pm2 reload "$PM2_APP_NAME" --update-env
             pm2 save
 
-            echo "==> Done 🚀"
+            echo "==> Deployment completed successfully 🚀"
