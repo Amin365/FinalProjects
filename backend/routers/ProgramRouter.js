@@ -16,8 +16,8 @@ const Programrouter = Router();
 const managePrograms = [protect, requirePermission("Manage Programme")];
 
 Programrouter.get("/teachers/available", managePrograms, getAvailableTeachers);
-Programrouter.get("/", optionalProtect, getPrograms);
-Programrouter.get("/:id", getProgramById);
+Programrouter.get("/", protect, getPrograms);
+Programrouter.get("/:id", protect, getProgramById);
 Programrouter.post("/", managePrograms, createProgram);
 Programrouter.put("/:id", managePrograms, updateProgram);
 Programrouter.delete("/:id", managePrograms, deleteProgram);

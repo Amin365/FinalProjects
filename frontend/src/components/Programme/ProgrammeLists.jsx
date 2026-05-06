@@ -168,7 +168,8 @@ const mapProgramToCard = (program) => {
     badgeLabel: badgeMeta.badgeLabel,
     title: program.title,
     desc: program.description || "Program details will be shared during enrollment.",
-    teacher: program.teacherId || "Program instructor",
+    teacher: program.teacher.fullName || "Program instructor",
+
     teacherInitials: getTeacherInitials(program.teacherId || "Program instructor"),
     duration: deriveDuration(program.startDate, program.endDate),
     enrolled,
@@ -910,6 +911,7 @@ const ProgramsPage = () => {
     },
     staleTime: 30_000,
   });
+
 
   const { data: myEnrollmentsData } = useQuery({
     queryKey: ["my-enrollments", token],

@@ -83,6 +83,7 @@ const ProgramTable = () => {
     staleTime: 30_000,
   });
 
+
   const { data: teachersData, isLoading: teachersLoading } = useQuery({
     queryKey: ["available-teachers"],
     queryFn: fetchAvailableTeachers,
@@ -93,6 +94,7 @@ const ProgramTable = () => {
 
   const programs = data?.data || [];
 
+  console.log("prog",programs)
   /* mutations */
   const createMutation = useMutation({
     mutationFn: (payload) => api.post("/programs", payload).then((r) => r.data),
@@ -138,6 +140,7 @@ const ProgramTable = () => {
       description: program.description || "",
       capacity: program.capacity || 1,
       teacherId: program.teacherId || "",
+      teacherName: program.teacher.fullName || "",
       assistants: Array.isArray(program.assistants) ? program.assistants.join(", ") : "",
       startDate: program.startDate ? new Date(program.startDate).toISOString().slice(0, 10) : "",
       endDate: program.endDate ? new Date(program.endDate).toISOString().slice(0, 10) : "",
@@ -236,7 +239,7 @@ const ProgramTable = () => {
                   )}
                 >
                   <td className="p-3 font-semibold text-slate-800 dark:text-white max-w-[180px] truncate">{p.title}</td>
-                  <td className="p-3 text-slate-600 dark:text-slate-300 text-xs">{p.teacherId}</td>
+                  <td className="p-3 text-slate-600 dark:text-slate-300 text-xs">{p.teacherName}</td>
                   <td className="p-3 text-slate-600 dark:text-slate-300">{p.capacity}</td>
                   <td className="p-3 text-xs text-slate-500 whitespace-nowrap">
                     {fmt(p.startDate)} → {fmt(p.endDate)}

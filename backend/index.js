@@ -43,7 +43,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Load env from repository root (../.env). This avoids relying on cwd and
 // fixes the previous incorrect backend/.env path.
-dotenv.config({ path: path.join(__dirname, "../.env") });
+// dotenv.config({ path: path.join(__dirname, "../.env") });
+
+dotenv.config({ path: path.join(__dirname, ".env") });
+
 const app = express()
 const PORT = process.env.PORT || 5000
 app.set("trust proxy", 1);
