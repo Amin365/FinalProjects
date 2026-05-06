@@ -3,6 +3,7 @@ import mongoose from "mongoose"
 import { createMember, getMembers,getMemberById,updateMember,bulkCreateMembers ,deleteMember,archiveMember,restoreMember,getMemberByCode,getMembersList,JoinClub, getJoinClubs, getJoinClubById, updateJoinClubStatus, getMemberOverview, createMemberNote, getMemberNotes, deleteMemberNote} from "../controller/members.js"
 import { sendMemberEmail } from "../controller/EmailController.js"
 import { protect } from "../middleware/auth.js"
+import { requirePermission } from "../middleware/role.js"
 import { apiLimiter } from "../utility/rateLimiter.js"
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -22,6 +23,9 @@ const upload = multer({ storage });
 
 const MemberRouter = express.Router()
 
+const manageMembers = [protect, requirePermission("Manage Members")];
+const manageTeachers = [protect, requirePermission("Manage Teacher")];
+
 
 MemberRouter.param("id", (req, res, next, id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -35,38 +39,38 @@ MemberRouter.param("id", (req, res, next, id) => {
 
 // collection routes
 MemberRouter.route("/members")
-  .get(getMembers)
-  .post(upload.single("profile_picture"), createMember)
+  .get(manageMembers, getMembers)
+  .post(manageMembers, upload.single("profile_picture"), createMember)
 
 // static/specific routes MUST come before dynamic :id
 // Protect the members list so we can return scoped lists for moderators
-MemberRouter.get("/members/list", protect, getMembersList);
+MemberRouter.get("/members/list", manageMembers, getMembersList);
 MemberRouter.get("/members/by-code/:code", getMemberByCode);
 
 // archive / restore and other item-specific actions
-MemberRouter.post('/members/:id/send-email',sendMemberEmail)
-MemberRouter.post("/members/:id/archive", archiveMember)
-MemberRouter.post("/members/:id/restore", restoreMember)
-MemberRouter.post("/members/bulk", protect, bulkCreateMembers);
+MemberRouter.post('/members/:id/send-email', manageMembers, sendMemberEmail)
+MemberRouter.post("/members/:id/archive", manageMembers, archiveMember)
+MemberRouter.post("/members/:id/restore", manageMembers, restoreMember)
+MemberRouter.post("/members/bulk", manageMembers, bulkCreateMembers);
 
 // Member overview (profile timeline)
-MemberRouter.get("/members/:id/overview", protect, apiLimiter, getMemberOverview);
+MemberRouter.get("/members/:id/overview", manageMembers, apiLimiter, getMemberOverview);
 
 // Member notes
 MemberRouter.route("/members/:id/notes")
-  .get(protect, apiLimiter, getMemberNotes)
-  .post(protect, apiLimiter, createMemberNote);
-MemberRouter.delete("/members/:id/notes/:noteId", protect, apiLimiter, deleteMemberNote);
+  .get(manageMembers, apiLimiter, getMemberNotes)
+  .post(manageMembers, apiLimiter, createMemberNote);
+MemberRouter.delete("/members/:id/notes/:noteId", manageMembers, apiLimiter, deleteMemberNote);
 
 // generic item routes last
 MemberRouter.route("/members/:id")
-  .get(getMemberById)
-  .put(upload.single("profile_picture"), updateMember)
-  .delete(deleteMember)
+  .get(manageMembers, getMemberById)
+  .put(manageMembers, upload.single("profile_picture"), updateMember)
+  .delete(manageMembers, deleteMember)
 
 MemberRouter.post("/join-club",JoinClub)
 
-MemberRouter.get("/join-club", protect, apiLimiter, getJoinClubs)
-MemberRouter.get("/join-club/:id", protect, apiLimiter, getJoinClubById)
-MemberRouter.patch("/join-club/:id/status", protect, apiLimiter, updateJoinClubStatus)
+MemberRouter.get("/join-club", manageTeachers, apiLimiter, getJoinClubs)
+MemberRouter.get("/join-club/:id", manageTeachers, apiLimiter, getJoinClubById)
+MemberRouter.patch("/join-club/:id/status", manageTeachers, apiLimiter, updateJoinClubStatus)
 export default MemberRouter

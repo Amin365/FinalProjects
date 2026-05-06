@@ -10,6 +10,8 @@ const getRoleName = async (userId) => {
   return String(user.role?.role || user.role?.plural || "").toLowerCase();
 };
 
+const isTeacherRole = (roleName = "") => /^(teacher|volunteer)$/.test(roleName);
+
 const ensureProgramAccess = async (userId, programId) => {
   const roleName = await getRoleName(userId);
   const program = await Program.findById(programId).lean();
@@ -19,7 +21,7 @@ const ensureProgramAccess = async (userId, programId) => {
     return { allowed: true, program };
   }
   if (
-    (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") &&
+    (roleName === "library staff" || isTeacherRole(roleName)) &&
     (String(program.teacherId) === String(userId) || (Array.isArray(program.assistants) && program.assistants.includes(String(userId))))
   ) {
     return { allowed: true, program };
@@ -54,7 +56,7 @@ export const getAttendancePrograms = async (req, res) => {
 
     const roleName = await getRoleName(userId);
     const filter = {};
-    if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") {
+    if (roleName === "library staff" || isTeacherRole(roleName)) {
       filter.$or = [{ teacherId: String(userId) }, { assistants: String(userId) }];
     }
 

@@ -1,5 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 import { 
   listNotifications, 
   markAllRead, 
@@ -22,25 +23,29 @@ import {
 
 const NotificationRouter = express.Router();
 
+const viewNotifications = [protect, requirePermission("View Notifications")];
+const manageNotificationSettings = [protect, requirePermission("Manage Notification Settings")];
+const manageAnnouncements = [protect, requirePermission("Manage Announcements")];
+
 // Notification endpoints
-NotificationRouter.get("/notifications", protect, listNotifications);
-NotificationRouter.get("/notifications/stats", protect, getNotificationStats);
-NotificationRouter.patch("/notifications/read-all", protect, markAllRead);
-NotificationRouter.delete("/notifications/read", protect, deleteAllRead);
-NotificationRouter.patch("/notifications/:id/read", protect, markOneRead);
-NotificationRouter.delete("/notifications/:id", protect, deleteNotification);
+NotificationRouter.get("/notifications", viewNotifications, listNotifications);
+NotificationRouter.get("/notifications/stats", viewNotifications, getNotificationStats);
+NotificationRouter.patch("/notifications/read-all", viewNotifications, markAllRead);
+NotificationRouter.delete("/notifications/read", viewNotifications, deleteAllRead);
+NotificationRouter.patch("/notifications/:id/read", viewNotifications, markOneRead);
+NotificationRouter.delete("/notifications/:id", viewNotifications, deleteNotification);
 
 // Push subscription
-NotificationRouter.post("/push/subscribe", protect, subscribePush);
+NotificationRouter.post("/push/subscribe", viewNotifications, subscribePush);
 
 // Notification preferences
-NotificationRouter.get("/notification-preferences", protect, getMyPreferences);
-NotificationRouter.patch("/notification-preferences", protect, updateMyPreferences);
-NotificationRouter.post("/notification-preferences/reset", protect, resetMyPreferences);
+NotificationRouter.get("/notification-preferences", manageNotificationSettings, getMyPreferences);
+NotificationRouter.patch("/notification-preferences", manageNotificationSettings, updateMyPreferences);
+NotificationRouter.post("/notification-preferences/reset", manageNotificationSettings, resetMyPreferences);
 
 // Announcements (admin only)
-NotificationRouter.post("/announcements", protect, createAnnouncement);
-NotificationRouter.get("/announcements/history", protect, getAnnouncementHistory);
-NotificationRouter.get("/announcements/preview", protect, getAudiencePreview);
+NotificationRouter.post("/announcements", manageAnnouncements, createAnnouncement);
+NotificationRouter.get("/announcements/history", manageAnnouncements, getAnnouncementHistory);
+NotificationRouter.get("/announcements/preview", manageAnnouncements, getAudiencePreview);
 
 export default NotificationRouter;

@@ -9,7 +9,7 @@ export const requireRole = (roles = []) => (req, res, next) => {
 };
 
 /**
- * Phase 8 - Permission-based middleware
+ *  - Permission-based middleware
  * Checks if the user has the required permission(s)
  * @param {string|string[]} permissions - Required permission(s)
  * @param {Object} options - Configuration options

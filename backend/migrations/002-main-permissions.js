@@ -30,6 +30,17 @@ export const mainPermissions = async () => {
     // 
     // Create permissions
     // 
+    await Permission.findOneAndUpdate(
+      { permission: "View Volunteer" },
+      { permission: "View Teacher" },
+      { new: true }
+    );
+    await Permission.findOneAndUpdate(
+      { permission: "Manage Volunteer" },
+      { permission: "Manage Teacher" },
+      { new: true }
+    );
+
     const permissionsData = [
       { permission: "Preferences", system: true, category: categories["General Settings"]._id, grouped_under: "" },
       { permission: "Add Users", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Users" },
@@ -37,6 +48,7 @@ export const mainPermissions = async () => {
       { permission: "Delete Users", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Users" },
       { permission: "View Users", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Users" },
       { permission: "View Detail", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Users" },
+      { permission: "Manage Permissions", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Roles" },
       { permission: "Add Role", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Roles" },
       { permission: "Edit Role", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Roles" },
       { permission: "Delete Role", system: true, category: categories["General Settings"]._id, grouped_under: "Manage Roles" },
@@ -45,9 +57,28 @@ export const mainPermissions = async () => {
       { permission: "Manage Books", system: true, category: categories["Main System"]._id, grouped_under: "" },
       { permission: "Manage Members", system: true, category: categories["Main System"]._id, grouped_under: "" },
       { permission: "Manage Issues", system: true, category: categories["Main System"]._id, grouped_under: "" },
+      { permission: "Manage Reservations", system: true, category: categories["Main System"]._id, grouped_under: "" },
+
       {permission:"View Programme",system:true,category:categories["Main System"]._id,grouped_under:"" },
-      {permission:"View Volunteer",system:true,category:categories["Main System"]._id,grouped_under:"" },
-      {permission:"View Resource",system:true,category:categories["Main System"]._id,grouped_under:"" }
+      {permission:"Manage Programme",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Teacher",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Teacher",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Resource",system:true,category:categories["Main System"]._id,grouped_under:"" },
+
+      {permission:"Manage Resource",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Enrollments",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Enrollments",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Attendance",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Attendance",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Notifications",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Notification Settings",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Announcements",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Reports",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Audit Log",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View System Health",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"Manage Enrollments Resource",system:true,category:categories["Main System"]._id,grouped_under:"" },
+      {permission:"View Enrollments Resource",system:true,category:categories["Main System"]._id,grouped_under:"" },
+
     ];
 
     const permissions = {};
@@ -98,6 +129,7 @@ export const mainPermissions = async () => {
         "Delete Users",
         "View Users",
         "View Detail",
+        "Manage Permissions",
         "Add Role",
         "Edit Role",
         "Delete Role",
@@ -105,21 +137,58 @@ export const mainPermissions = async () => {
         "Manage Books",
         "Manage Members",
         "Manage Issues",
+        "Manage Reservations",
         "View Programme",
-        "View Volunteer",
+        "Manage Programme",
+        "View Teacher",
+        "Manage Teacher",
         "View Resource",
+        "Manage Resource",
+        "Manage Enrollments",
+        "View Enrollments",
+        "Manage Attendance",
+        "View Attendance",
+        "View Notifications",
+        "Manage Notification Settings",
+        "Manage Announcements",
+        "View Reports",
+        "View Audit Log",
+        "View System Health",
       ],
       "Library Staff": [
         "Manage Books",
         "Manage Members",
         "Manage Issues",
-        "View Resource",
-        "View Programme",
+        "Manage Reservations",
+        "Manage Resource",
+         "Manage Programme",
+        "View Teacher",
+        "View Enrollments",
+        "View Attendance",
+        "View Notifications",
+        "Manage Notification Settings",
+        "Manage Announcements",
       ],
       Student: [
         "View Resource",
         "View Programme",
+        "View Notifications",
+        "Manage Notification Settings",
+         "Manage Issues",
+        "Manage Reservations",
       ],
+      Teacher: [
+        "View Programme",
+        "View Resource",
+        "Manage Enrollments",
+        "View Enrollments",
+        "Manage Attendance",
+        "View Attendance",
+        "View Notifications",
+        "Manage Notification Settings",
+        "Manage Announcements",
+      ],
+
     };
 
 for (const [roleName, permNames] of Object.entries(rolePermissionMap)) {

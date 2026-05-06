@@ -18,7 +18,7 @@ const getRoleNameFromReqUser = (u) =>
 
 const isAdminRole = (roleName) => /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
 const isLibraryStaffRole = (roleName) => /^library\s*staff$/i.test(roleName);
-const isTeacherOrVolunteerRole = (roleName) => /^teacher$/i.test(roleName) || /^volunteer$/i.test(roleName);
+const isTeacherRole = (roleName) => /^teacher$/i.test(roleName);
 
 const ANNOUNCEMENT_AUDIENCES = [
   // legacy
@@ -81,10 +81,9 @@ async function getTargetAudience(targetAudience, { senderUserId } = {}) {
     }
 
     case "program_teachers": {
-      const volunteerRole = await findRoleByRegex(/^volunteers?$/i);
       const teacherRole = await findRoleByRegex(/^teachers?$/i);
 
-      const roleIds = [volunteerRole?._id, teacherRole?._id].filter(Boolean);
+      const roleIds = [teacherRole?._id].filter(Boolean);
       if (!roleIds.length) return [];
 
       return User.find({ role: { $in: roleIds }, status: "Active" })
@@ -173,7 +172,7 @@ export const createAnnouncement = async (req, res, next) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const roleName = getRoleNameFromReqUser(req.user);
-    const canSend = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    const canSend = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherRole(roleName);
     if (!canSend) return res.status(403).json({ message: "You are not allowed to send announcements" });
 
     const {
@@ -201,7 +200,7 @@ export const createAnnouncement = async (req, res, next) => {
     const allowedAudiences = (() => {
       if (isAdminRole(roleName)) return ANNOUNCEMENT_AUDIENCES;
       if (isLibraryStaffRole(roleName)) return ["students", "program_teachers"];
-      if (isTeacherOrVolunteerRole(roleName)) return ["my_students"];
+      if (isTeacherRole(roleName)) return ["my_students"];
       return [];
     })();
 
@@ -312,7 +311,7 @@ export const getAnnouncementHistory = async (req, res, next) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const roleName = getRoleNameFromReqUser(req.user);
-    const canView = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    const canView = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherRole(roleName);
     if (!canView) return res.status(403).json({ message: "You are not allowed to view announcement history" });
 
     const { page = 1, limit = 20 } = req.query;
@@ -380,7 +379,7 @@ export const getAudiencePreview = async (req, res, next) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const roleName = getRoleNameFromReqUser(req.user);
-    const canPreview = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherOrVolunteerRole(roleName);
+    const canPreview = isAdminRole(roleName) || isLibraryStaffRole(roleName) || isTeacherRole(roleName);
     if (!canPreview) return res.status(403).json({ message: "You are not allowed to preview audiences" });
 
     const { targetAudience = "all" } = req.query;
@@ -392,7 +391,7 @@ export const getAudiencePreview = async (req, res, next) => {
     const allowedAudiences = (() => {
       if (isAdminRole(roleName)) return ANNOUNCEMENT_AUDIENCES;
       if (isLibraryStaffRole(roleName)) return ["students", "program_teachers"];
-      if (isTeacherOrVolunteerRole(roleName)) return ["my_students"];
+      if (isTeacherRole(roleName)) return ["my_students"];
       return [];
     })();
 

@@ -31,74 +31,30 @@ import api from "@/app/api/apislice";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid, isActive: true },
-  { title: "Users", url: "/dashboard/users", icon: Users2 },
-  { title: "Permissions", url: "/dashboard/permissions", icon: Settings },
-  { title: "Books", url: "/dashboard/books", icon: BookOpen },
-  { title: "Members", url: "/dashboard/members", icon: Users2 },
-  { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen },
-  { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList },
-  { title: "Reservations", url: "/dashboard/reservations", icon: BookMarked },
-  { title: "Programs Management", url: "/dashboard/programme", icon: FileChartColumn },
-  { title: "Resource Management", url: "/dashboard/resources", icon: Bot },
-  { title: "Volunteer Management", url: "/dashboard/join-clubs", icon: ActivityIcon },
-  { title: "Enrollments", url: "/dashboard/enrollments", icon: User },
-  { title: "Attendance", url: "/dashboard/attendance", icon: ClipboardList },
-  { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn },
-  { title: "Resources", url: "/dashboard/studentsresources", icon: Trophy },
-  { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
-  { title: "Notification Settings", url: "/dashboard/notification-settings", icon: Settings },
-  { title: "Announcements", url: "/dashboard/announcements", icon: Megaphone },
-  { title: "Reporting Center", url: "/dashboard/reporting", icon: BarChart3 },
-  { title: "Audit Log", url: "/dashboard/audit-log", icon: FileChartColumn },
-  { title: "System Health", url: "/dashboard/system-health", icon: ActivityIcon },
+  { title: "Users", url: "/dashboard/users", icon: Users2, permissions: ["View Users"] },
+  { title: "Permissions", url: "/dashboard/permissions", icon: Settings, permissions: ["Manage Permissions", "View Role"] },
+  { title: "Books", url: "/dashboard/books", icon: BookOpen, permissions: ["Manage Books"] },
+  { title: "Members", url: "/dashboard/members", icon: Users2, permissions: ["Manage Members"] },
+  { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen, permissions: ["Manage Issues ","Manage Books"] },
+  { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList, permissions: ["Manage Issues"] },
+  { title: "Reservations", url: "/dashboard/reservations", icon: BookMarked, permissions: ["Manage Reservations"] },
+  { title: "Programs Management", url: "/dashboard/programme", icon: FileChartColumn, permissions: ["Manage Programme"] },
+  { title: "Resource Management", url: "/dashboard/resources", icon: Bot, permissions: ["Manage Resource"] },
+  { title: "Teacher Management", url: "/dashboard/join-clubs", icon: ActivityIcon, permissions: ["Manage Teacher"] },
+  { title: "Enrollments", url: "/dashboard/enrollments", icon: User, permissions: ["View Enrollments"] },
+  { title: "Attendance", url: "/dashboard/attendance", icon: ClipboardList, permissions: ["View Attendance"] },
+  { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn, permissions: ["View Programme"] },
+  { title: "Resources", url: "/dashboard/studentsresources", icon: Trophy, permissions: ["View Resource"] },
+  { title: "Notifications", url: "/dashboard/notifications", icon: Bell, permissions: ["View Notifications"] },
+  { title: "Notification Settings", url: "/dashboard/notification-settings", icon: Settings, permissions: ["Manage Notification Settings"] },
+  { title: "Announcements", url: "/dashboard/announcements", icon: Megaphone, permissions: ["Manage Announcements"] },
+  { title: "Reporting Center", url: "/dashboard/reporting", icon: BarChart3, permissions: ["View Reports"] },
+  { title: "Audit Log", url: "/dashboard/audit-log", icon: FileChartColumn, permissions: ["View Audit Log"] },
+  { title: "System Health", url: "/dashboard/system-health", icon: ActivityIcon, permissions: ["View System Health"] },
 ];
 
 const isAdminRoleName = (roleName = "") =>
   /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
-
-const LIBRARY_STAFF_ROUTES = new Set([
-  "/dashboard",
-  "/dashboard/books",
-  "/dashboard/members",
-  "/dashboard/issues",
-  "/dashboard/issues/request",
-  "/dashboard/reservations",
-  "/dashboard/announcements",
-  "/dashboard/notifications",
-  "/dashboard/notification-settings",
-  "/dashboard/studentsresources",
-]);
-
-const STUDENT_ROUTES = new Set([
-  "/dashboard",
-  "/dashboard/issues/request",
-  "/dashboard/reservations",
- "/dashboard/studentsresources",
-"/dashboard/programmecards",
-  "/dashboard/notifications",
-  "/dashboard/notification-settings",
-
-]);
-
-const VOLUNTEER_ROUTES = new Set([
-  "/dashboard",
-  "/dashboard/enrollments",
-  "/dashboard/programmecards",
-  "/dashboard/attendance",
-  "/dashboard/resources",
-  "/dashboard/announcements",
-  "/dashboard/notifications",
-  "/dashboard/notification-settings",
-])
-
-
-
-
-const DEFAULT_SAFE_ROUTES = new Set([
-  "/dashboard",
-  "/dashboard/notifications",
-  "/dashboard/notification-settings",
-]);
 
 const getRoleName = (profileData, user) => {
   const roleSource = profileData?.user?.role || user?.role;
@@ -109,13 +65,12 @@ const getRoleName = (profileData, user) => {
   return String(roleSource).toLowerCase();
 };
 
-const getVisibleRoutesForRole = (roleName) => {
-  const normalizedRole = String(roleName || "").toLowerCase();
-  if (isAdminRoleName(normalizedRole)) return null;
-  if (normalizedRole === "library staff" || normalizedRole === "teacher") return LIBRARY_STAFF_ROUTES;
-  if (normalizedRole === "student") return STUDENT_ROUTES;
-  if (normalizedRole === "volunteer") return VOLUNTEER_ROUTES;
-  return DEFAULT_SAFE_ROUTES;
+const toPermissionSet = (permissions = []) =>
+  new Set(permissions.map((p) => String(p).toLowerCase()));
+
+const hasAnyPermission = (permSet, permissions = []) => {
+  if (!permissions?.length) return true;
+  return permissions.some((p) => permSet.has(String(p).toLowerCase()));
 };
 
 export function AppSidebar(props) {
@@ -138,20 +93,23 @@ export function AppSidebar(props) {
   });
 
   const roleName = React.useMemo(() => getRoleName(profileData, user), [profileData, user]);
+  const permissionSet = React.useMemo(
+    () => toPermissionSet(profileData?.user?.permissions || user?.permissions || []),
+    [profileData, user]
+  );
 
   const filteredNav = React.useMemo(() => {
-    const visibleRoutes = getVisibleRoutesForRole(roleName);
-    if (!visibleRoutes) {
+    if (isAdminRoleName(roleName)) {
       return NAV_ITEMS;
     }
-    const items = NAV_ITEMS.filter((item) => visibleRoutes.has(item.url));
-    if (roleName === "volunteer") {
+    const items = NAV_ITEMS.filter((item) => hasAnyPermission(permissionSet, item.permissions));
+    if (roleName === "teacher" || roleName === "volunteer") {
       return items.map((item) =>
         item.url === "/dashboard/programmecards" ? { ...item, title: "My Programs" } : item
       );
     }
     return items;
-  }, [roleName]);
+  }, [roleName, permissionSet]);
 
   return (
     <Sidebar collapsible="icon" {...props}>

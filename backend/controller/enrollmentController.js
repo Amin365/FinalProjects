@@ -15,6 +15,8 @@ const getRequestRoleName = (req) => {
   return String(roleSource).toLowerCase();
 };
 
+const isTeacherRole = (roleName = "") => /^(teacher|volunteer)$/.test(roleName);
+
 const getTeacherScopeForRequest = (req) => {
   const roleName = getRequestRoleName(req);
   // If there is no authenticated user, we don't scope (public request)
@@ -22,7 +24,7 @@ const getTeacherScopeForRequest = (req) => {
   // If authenticated but no role is present, deny by default
   if (!roleName) return "__deny__";
   if (/super\s*admin/i.test(roleName) || /^admin$/i.test(roleName)) return null;
-  if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") return String(req.user._id);
+  if (roleName === "library staff" || isTeacherRole(roleName)) return String(req.user._id);
   return "__deny__";
 };
 

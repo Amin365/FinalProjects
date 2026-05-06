@@ -1,6 +1,6 @@
 import express from 'express'
 import { protect } from '../middleware/auth.js';
-import { requireRole } from '../middleware/role.js';
+import { requirePermission } from '../middleware/role.js';
 import { apiLimiter } from '../utility/rateLimiter.js';
 import { 
   createRole, 
@@ -18,25 +18,28 @@ import {
 
 const RoleRouter = express.Router();
 
-// All permission/role management routes require admin role
-const adminOnly = [protect, requireRole(["Super Admin", "Admin"])];
+const viewRoles = [protect, requirePermission("View Role")];
+const managePermissions = [protect, requirePermission("Manage Permissions")];
+const addRole = [protect, requirePermission("Add Role")];
+const editRole = [protect, requirePermission("Edit Role")];
+const deleteRoleGuard = [protect, requirePermission("Delete Role")];
 
 // Permission routes
-RoleRouter.get('/permissions', adminOnly, apiLimiter, getPermissions);
-RoleRouter.get('/permission-categories', adminOnly, apiLimiter, getPermissionCategories);
-RoleRouter.get('/permission-matrix', adminOnly, apiLimiter, getPermissionMatrix);
+RoleRouter.get('/permissions', managePermissions, apiLimiter, getPermissions);
+RoleRouter.get('/permission-categories', managePermissions, apiLimiter, getPermissionCategories);
+RoleRouter.get('/permission-matrix', managePermissions, apiLimiter, getPermissionMatrix);
 
 // Role routes
-RoleRouter.get('/roles', getRoles);
-RoleRouter.get('/roles/:id', adminOnly, apiLimiter, getRoleById);
-RoleRouter.post('/roles', adminOnly, apiLimiter, createRole);
-RoleRouter.put('/roles/:id', adminOnly, apiLimiter, updateRole);
-RoleRouter.delete('/roles/:id', adminOnly, apiLimiter, deleteRole);
+RoleRouter.get('/roles', viewRoles, getRoles);
+RoleRouter.get('/roles/:id', viewRoles, apiLimiter, getRoleById);
+RoleRouter.post('/roles', addRole, apiLimiter, createRole);
+RoleRouter.put('/roles/:id', editRole, apiLimiter, updateRole);
+RoleRouter.delete('/roles/:id', deleteRoleGuard, apiLimiter, deleteRole);
 
 // Role-permission management
-RoleRouter.post('/roles/:id/permissions', adminOnly, apiLimiter, addPermissionToRole);
-RoleRouter.put('/roles/:id/permissions/bulk', adminOnly, apiLimiter, bulkUpdateRolePermissions);
-RoleRouter.delete('/roles/:id/permissions/:permissionId', adminOnly, apiLimiter, removePermissionFromRole);
+RoleRouter.post('/roles/:id/permissions', managePermissions, apiLimiter, addPermissionToRole);
+RoleRouter.put('/roles/:id/permissions/bulk', managePermissions, apiLimiter, bulkUpdateRolePermissions);
+RoleRouter.delete('/roles/:id/permissions/:permissionId', managePermissions, apiLimiter, removePermissionFromRole);
 
 export default RoleRouter;
 

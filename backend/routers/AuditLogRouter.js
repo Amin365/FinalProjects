@@ -5,7 +5,7 @@
 
 import express from "express";
 import { protect } from "../middleware/auth.js";
-import { requireRole } from "../middleware/role.js";
+import { requirePermission } from "../middleware/role.js";
 import { apiLimiter } from "../utility/rateLimiter.js";
 import {
   getAuditLogs,
@@ -18,8 +18,8 @@ import {
 
 const AuditLogRouter = express.Router();
 
-// All audit log routes require authentication and admin role
-const adminOnly = [protect, requireRole(["Super Admin", "Admin"])];
+// All audit log routes require audit log permission
+const adminOnly = [protect, requirePermission("View Audit Log")];
 
 // Get audit log statistics
 AuditLogRouter.get("/audit-logs/stats", adminOnly, apiLimiter, getAuditLogStats);

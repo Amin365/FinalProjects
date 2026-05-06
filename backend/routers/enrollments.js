@@ -13,8 +13,12 @@ import {
   cancelEnrollment,
 } from "../controller/enrollmentController.js";
 import { protect, optionalProtect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 
 const router = express.Router();
+
+const viewEnrollments = [protect, requirePermission("View Enrollments")];
+const manageEnrollments = [protect, requirePermission("Manage Enrollments")];
 
 // multer simple disk storage (change to S3 in prod)
 const upload = multer({
@@ -27,21 +31,21 @@ const upload = multer({
 router.post("/programs/:id/enroll", optionalProtect, upload.single("attachment"), createEnrollment);
 
 // GET /enrollments
-router.get("/enrollments", protect, getAllEnrollments);
-router.get("/enrollments/:id", protect, getEnrollmentById);
+router.get("/enrollments", viewEnrollments, getAllEnrollments);
+router.get("/enrollments/:id", viewEnrollments, getEnrollmentById);
 
 // Admin decision endpoints
-router.post("/enrollments/:id/approve", protect, approveEnrollment);
-router.post("/enrollments/:id/reject", protect, rejectEnrollment);
+router.post("/enrollments/:id/approve", manageEnrollments, approveEnrollment);
+router.post("/enrollments/:id/reject", manageEnrollments, rejectEnrollment);
 
 // GET /programs/:id/enrollments  (admin)
-router.get("/programs/:id/enrollments", protect, getEnrollmentsForProgram);
+router.get("/programs/:id/enrollments", viewEnrollments, getEnrollmentsForProgram);
 
 // GET /users/:userId/enrollments  or GET /me/enrollments (if you set req.user)
-router.get("/users/:userId/enrollments", protect, getEnrollmentsForUser);
+router.get("/users/:userId/enrollments", viewEnrollments, getEnrollmentsForUser);
 
 // POST /enrollments/:id/cancel
 router.post("/enrollments/:id/cancel", cancelEnrollment);
-router.delete("/enrollments/:id", protect, deleteEnrollment);
+router.delete("/enrollments/:id", manageEnrollments, deleteEnrollment);
 
 export default router;

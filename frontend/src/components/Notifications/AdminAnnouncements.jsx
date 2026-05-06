@@ -29,7 +29,7 @@ import { useSelector } from "react-redux";
 const TARGET_AUDIENCES = [
   { value: "all", label: "All Users", description: "All active users" },
   { value: "students", label: "All Students", description: "All student users" },
-  { value: "program_teachers", label: "Program Teachers", description: "All volunteers/teachers" },
+  { value: "program_teachers", label: "Program Teachers", description: "All teachers" },
   { value: "my_students", label: "My Students", description: "Students enrolled in my programs" },
   { value: "inactive", label: "Inactive Users", description: "Users linked to inactive members" },
   { value: "overdue", label: "Users with Overdue", description: "Users with overdue books" },

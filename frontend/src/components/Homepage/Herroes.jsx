@@ -146,13 +146,13 @@ export default function HeroSection() {
                     onClick={() => setJoinOpen(true)}
                     className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-slate-200 dark:border-gray-700 text-slate-700 dark:text-slate-200 text-[14px] font-bold hover:bg-slate-50 dark:hover:bg-gray-800 transition-all"
                   >
-                    <Heart size={14} className="text-orange-500" />
+                    <Heart size={14} className=" text-orange-500" />
                     Join the Club
                   </button>
                 </AnimatedGroup>
 
                 {/* Social proof */}
-                <AnimatedGroup variants={transitionVariants} className="flex flex-wrap justify-center lg:justify-start gap-3">
+                <AnimatedGroup variants={transitionVariants} className="lg:flex hidden flex-wrap justify-center  lg:justify-start gap-3">
                   <StatPill icon={Users}     value="2,400+" label="Active members" />
                   <StatPill icon={BookOpen}  value="6 live"  label="Programs now" />
                   <StatPill icon={Star}      value="4.8/5"   label="Avg rating" />
@@ -248,7 +248,7 @@ export default function HeroSection() {
 
         <div className="relative">
           {/* soft divider */}
-          <div className=" mx-12 mb-20" />
+          <div className=" mx-12 mb-12" />
 
           <Features />
         </div>

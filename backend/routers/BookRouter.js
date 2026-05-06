@@ -2,7 +2,7 @@
 import express from 'express'
 import { createBook,getBooks,getBookById,bulkCreateBooks, updateBook, deleteBook, updateBookCondition, getBookHistory } from '../controller/BookController.js';
 import { protect } from '../middleware/auth.js';
-import { requireRole } from '../middleware/role.js';
+import { requirePermission } from '../middleware/role.js';
 import { apiLimiter } from '../utility/rateLimiter.js';
 
 const BookRouter= express.Router();
@@ -23,15 +23,17 @@ import cloudinary from '../utility/cloudinary.js'
 
 const upload = multer({ storage });
 
-BookRouter.post('/books',protect, upload.single('image'), createBook);
+const manageBooks = [protect, requirePermission("Manage Books")];
+
+BookRouter.post('/books', manageBooks, upload.single('image'), createBook);
 BookRouter.get('/books', getBooks)
 BookRouter.get('/books/:id', getBookById)
-BookRouter.put('/books/:id', protect, upload.single('image'), updateBook);
-BookRouter.delete('/books/:id',deleteBook)
+BookRouter.put('/books/:id', manageBooks, upload.single('image'), updateBook);
+BookRouter.delete('/books/:id', manageBooks, deleteBook)
 
-BookRouter.post("/books/bulk", protect, bulkCreateBooks);
-BookRouter.patch("/books/:id/condition", apiLimiter, protect, updateBookCondition);
-BookRouter.get("/books/:id/history", apiLimiter, protect, getBookHistory);
+BookRouter.post("/books/bulk", manageBooks, bulkCreateBooks);
+BookRouter.patch("/books/:id/condition", apiLimiter, manageBooks, updateBookCondition);
+BookRouter.get("/books/:id/history", apiLimiter, manageBooks, getBookHistory);
 
 
 export default BookRouter;

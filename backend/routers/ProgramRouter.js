@@ -1,6 +1,7 @@
 
 import { Router } from "express";
 import { protect, optionalProtect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 import {
   createProgram,
   getAvailableTeachers,
@@ -12,11 +13,13 @@ import {
 
 const Programrouter = Router();
 
-Programrouter.get("/teachers/available", protect, getAvailableTeachers);
+const managePrograms = [protect, requirePermission("Manage Programme")];
+
+Programrouter.get("/teachers/available", managePrograms, getAvailableTeachers);
 Programrouter.get("/", optionalProtect, getPrograms);
 Programrouter.get("/:id", getProgramById);
-Programrouter.post("/", protect, createProgram);
-Programrouter.put("/:id", protect, updateProgram);
-Programrouter.delete("/:id", protect, deleteProgram);
+Programrouter.post("/", managePrograms, createProgram);
+Programrouter.put("/:id", managePrograms, updateProgram);
+Programrouter.delete("/:id", managePrograms, deleteProgram);
 
 export default Programrouter;

@@ -6,6 +6,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { protect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 import {
   getLibraryKpis,
   getTopProgramsByEnrollment,
@@ -22,6 +23,8 @@ import {
 
 const ReportingRouter = express.Router();
 
+const viewReports = [protect, requirePermission("View Reports")];
+
 // Rate limiter for reporting endpoints (expensive aggregations)
 const reportingLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -33,34 +36,34 @@ const reportingLimiter = rateLimit({
 });
 
 // Admin reports with filters
-ReportingRouter.get("/reporting/admin-reports", reportingLimiter, protect, getAdminReports);
+ReportingRouter.get("/reporting/admin-reports", reportingLimiter, viewReports, getAdminReports);
 
 // KPI reports (library + programs)
-ReportingRouter.get("/reporting/kpis", reportingLimiter, protect, getLibraryKpis);
-ReportingRouter.get("/reporting/top-programs", reportingLimiter, protect, getTopProgramsByEnrollment);
+ReportingRouter.get("/reporting/kpis", reportingLimiter, viewReports, getLibraryKpis);
+ReportingRouter.get("/reporting/top-programs", reportingLimiter, viewReports, getTopProgramsByEnrollment);
 
 // Top readers report
-ReportingRouter.get("/reporting/top-readers", reportingLimiter, protect, getTopReadersReport);
+ReportingRouter.get("/reporting/top-readers", reportingLimiter, viewReports, getTopReadersReport);
 
 // Weakest participation report
-ReportingRouter.get("/reporting/weakest-participation", reportingLimiter, protect, getWeakestParticipation);
+ReportingRouter.get("/reporting/weakest-participation", reportingLimiter, viewReports, getWeakestParticipation);
 
 // Reading health indicators
-ReportingRouter.get("/reporting/reading-health", reportingLimiter, protect, getReadingHealth);
+ReportingRouter.get("/reporting/reading-health", reportingLimiter, viewReports, getReadingHealth);
 
 // Monthly comparison (current vs previous)
-ReportingRouter.get("/reporting/monthly-comparison", reportingLimiter, protect, getMonthlyComparison);
+ReportingRouter.get("/reporting/monthly-comparison", reportingLimiter, viewReports, getMonthlyComparison);
 
 // Department comparison
-ReportingRouter.get("/reporting/department-comparison", reportingLimiter, protect, getDepartmentComparison);
+ReportingRouter.get("/reporting/department-comparison", reportingLimiter, viewReports, getDepartmentComparison);
 
 // Report quality summary
-ReportingRouter.get("/reporting/report-quality", reportingLimiter, protect, getReportQuality);
+ReportingRouter.get("/reporting/report-quality", reportingLimiter, viewReports, getReportQuality);
 
 // Export endpoints
-ReportingRouter.get("/reporting/export/csv", reportingLimiter, protect, exportReportsCSV);
+ReportingRouter.get("/reporting/export/csv", reportingLimiter, viewReports, exportReportsCSV);
 
 // Summary for scheduled reports
-ReportingRouter.get("/reporting/summary", reportingLimiter, protect, getReportingSummary);
+ReportingRouter.get("/reporting/summary", reportingLimiter, viewReports, getReportingSummary);
 
 export default ReportingRouter;

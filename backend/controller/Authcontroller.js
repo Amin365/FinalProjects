@@ -257,19 +257,64 @@ export const logout = async (req, res) => {
   }
 };
 
+// export const GetProfile = async (req, res, next) => {
+//   try {
+//     const user = await User.findById(req.user._id)
+//       .select("-password")
+//       .populate("role", "role color plural system")
+//       .lean();
+//     if (!user) return res.status(404).json({ message: "User not found" });
+
+//     res.json({ success: true, user });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+
 export const GetProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id)
       .select("-password")
       .populate("role", "role color plural system")
       .lean();
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.json({ success: true, user });
+    // ✅ Get role permissions
+    const rolePermissions = await RolePermission.find({ role: user.role?._id })
+      .populate("permission", "permission")
+      .lean();
+
+    // ✅ Get user-specific permissions
+    const userPermissions = await UserPermission.find({ user: user._id })
+      .populate("permission", "permission")
+      .lean();
+
+    // ✅ Combine + normalize
+    const permissions = [
+      ...rolePermissions.map(rp => rp.permission?.permission),
+      ...userPermissions.map(up => up.permission?.permission),
+    ]
+      .filter(Boolean)
+      .map(p => p.toLowerCase()); // 🔥 IMPORTANT (matches frontend)
+
+    // ✅ Remove duplicates
+    const uniquePermissions = [...new Set(permissions)];
+
+    // ✅ Attach to user
+    user.permissions = uniquePermissions;
+
+    res.json({
+      success: true,
+      user,
+    });
+
   } catch (err) {
     next(err);
   }
 };
+
 
 /**
 

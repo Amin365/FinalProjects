@@ -69,6 +69,9 @@ const EnrollmentDetails = lazy(() => import("./components/Enrollments/Enrollment
 const Attendance = lazy(() => import("./components/Attendance/AttendancePage"));
 const TeamVolunteer= lazy(() => import("./components/Volunteer/TeamVal"));
 const Chat=lazy(()=>import("./components/Chats/Chatpage"))
+
+const Abouthome = lazy(() => import("./pages/AbouPage"));
+
 function App() {
   return (
     <>
@@ -80,6 +83,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/file" element={<File />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+       
+          <Route path="/about" element={<Abouthome />} />
        
 
        

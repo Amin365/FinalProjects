@@ -62,7 +62,7 @@ const getTeacherMap = async (teacherIds) => {
 const getTeacherFilterForRequest = (req) => {
   const roleName = getRequestRoleName(req);
   if (!req.user?._id || !roleName || isAdminRoleName(roleName)) return null;
-  if (roleName === "library staff" || roleName === "teacher" || roleName === "volunteer") {
+  if (roleName === "library staff" || roleName === "teacher") {
     return String(req.user._id);
   }
   return "__deny__";
@@ -73,10 +73,8 @@ const getTeacherRoleIds = async () => {
     $or: [
       // { role: { $regex: /^library\s*staff$/i } },
       // { plural: { $regex: /^library\s*staff$/i } },
-      // { role: { $regex: /^teacher$/i } },
-      // { plural: { $regex: /^teachers?$/i } },
-      { role: { $regex: /^volunteer$/i } },
-      { plural: { $regex: /^volunteers?$/i } },
+      { role: { $regex: /^teacher$/i } },
+      { plural: { $regex: /^teachers?$/i } },
     ],
   })
     .select("_id")

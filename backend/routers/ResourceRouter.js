@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { protect, optionalProtect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 import { apiLimiter } from "../utility/rateLimiter.js";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -16,6 +17,8 @@ import {
 } from "../controller/ResourceController.js";
 
 const ResourceRouter = Router();
+
+const manageResources = [protect, requirePermission("Manage Resource")];
 
 // Cloudinary storage for resource files
 const storage = new CloudinaryStorage({
@@ -50,8 +53,8 @@ ResourceRouter.post("/resources/:id/views", incrementResourceViews);
 ResourceRouter.post("/resources/:id/downloads", incrementResourceDownloads);
 
 // Protected endpoints (admin/moderator only)
-ResourceRouter.post("/resources", protect, apiLimiter, uploadFields, createResource);
-ResourceRouter.put("/resources/:id", protect, apiLimiter, uploadFields, updateResource);
-ResourceRouter.delete("/resources/:id", protect, apiLimiter, deleteResource);
+ResourceRouter.post("/resources", manageResources, apiLimiter, uploadFields, createResource);
+ResourceRouter.put("/resources/:id", manageResources, apiLimiter, uploadFields, updateResource);
+ResourceRouter.delete("/resources/:id", manageResources, apiLimiter, deleteResource);
 
 export default ResourceRouter;

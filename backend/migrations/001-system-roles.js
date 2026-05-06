@@ -4,13 +4,27 @@ import User from "../models/user.js";
 
 export const systemRoles = async () => {
   try {
+    const volunteerRole = await Role.findOne({ role: "Volunteer" }).lean();
+    const teacherRole = await Role.findOne({ role: "Teacher" }).lean();
+
+    if (volunteerRole && teacherRole && String(volunteerRole._id) !== String(teacherRole._id)) {
+      await User.updateMany({ role: volunteerRole._id }, { $set: { role: teacherRole._id } });
+      await Role.deleteOne({ _id: volunteerRole._id });
+    } else if (volunteerRole && !teacherRole) {
+      await Role.findOneAndUpdate(
+        { _id: volunteerRole._id },
+        { role: "Teacher", plural: "Teachers" },
+        { new: true }
+      );
+    }
+
     // Define the roles
     const rolesData = [
       { role: "Super Admin", plural: "Super Admins", system: true, color: "#6366f1" },
       { role: "Admin", plural: "Admins", system: true, color: "#6366f1" },
       { role: "Library Staff", plural: "Library Staff", system: true, color: "#4f46e5", parent: null },
       { role: "Student", plural: "Students", system: true, color: "#10b981", parent: null },
-      { role: "Volunteer", plural: "Volunteers", system: true, color: "#10b971", parent: null },
+      { role: "Teacher", plural: "Teachers", system: true, color: "#10b971", parent: null },
      
 
     ];

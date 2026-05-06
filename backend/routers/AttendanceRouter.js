@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/role.js";
 import {
   getAttendanceByProgramAndDate,
   getAttendanceHistory,
@@ -9,9 +10,12 @@ import {
 
 const AttendanceRouter = Router();
 
-AttendanceRouter.get("/attendance/programs", protect, getAttendancePrograms);
-AttendanceRouter.get("/attendance/programs/:id", protect, getAttendanceByProgramAndDate);
-AttendanceRouter.get("/attendance/programs/:id/history", protect, getAttendanceHistory);
-AttendanceRouter.post("/attendance/programs/:id", protect, saveAttendance);
+const viewAttendance = [protect, requirePermission("View Attendance")];
+const manageAttendance = [protect, requirePermission("Manage Attendance")];
+
+AttendanceRouter.get("/attendance/programs", viewAttendance, getAttendancePrograms);
+AttendanceRouter.get("/attendance/programs/:id", viewAttendance, getAttendanceByProgramAndDate);
+AttendanceRouter.get("/attendance/programs/:id/history", viewAttendance, getAttendanceHistory);
+AttendanceRouter.post("/attendance/programs/:id", manageAttendance, saveAttendance);
 
 export default AttendanceRouter;

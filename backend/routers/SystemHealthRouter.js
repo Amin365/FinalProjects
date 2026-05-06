@@ -5,7 +5,7 @@
 
 import express from "express";
 import { protect } from "../middleware/auth.js";
-import { requireRole } from "../middleware/role.js";
+import { requirePermission } from "../middleware/role.js";
 import { apiLimiter } from "../utility/rateLimiter.js";
 import {
   getSystemHealth,
@@ -18,8 +18,8 @@ import {
 
 const SystemHealthRouter = express.Router();
 
-// All system health routes require authentication and admin role
-const adminOnly = [protect, requireRole(["Super Admin", "Admin"])];
+// All system health routes require system health permission
+const adminOnly = [protect, requirePermission("View System Health")];
 
 // Get system summary for dashboard
 SystemHealthRouter.get("/system-health/summary", adminOnly, apiLimiter, getSystemSummary);

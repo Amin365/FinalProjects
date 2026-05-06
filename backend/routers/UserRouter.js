@@ -1,6 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/auth.js";
-import Role from "../models/Role.js";
+import { requirePermission } from "../middleware/role.js";
 import {
   getUsers,
   getUserById,
@@ -49,21 +49,9 @@ const upload = multer({ storage ,
 
 const router = express.Router();
 
-// Simple admin guard: allow only Super Admin role
-const requireSuperAdmin = async (req, res, next) => {
-  try {
-    const roleId = req.user?.role;
-    const roleDoc = roleId ? await Role.findById(roleId).lean().exec() : null;
-    const roleName = roleDoc?.role ? String(roleDoc.role).toLowerCase() : "";
-    const isSuperAdmin = /super\s*admin/.test(roleName);
-    if (!isSuperAdmin) {
-      return res.status(403).json({ message: "Forbidden: Admins only" });
-    }
-    next();
-  } catch (err) {
-    next(err);
-  }
-};
+const viewUsers = [protect, requirePermission("View Users")];
+const addUsers = [protect, requirePermission("Add Users")];
+const editUsers = [protect, requirePermission("Edit Users")];
 
 // Profile routes (for current user, no admin guard)
 // router.put("/profile", protect, upload.single('profile'), updateProfile); 
@@ -89,13 +77,13 @@ router.put("/profile/change-password", protect, changePassword); // Change passw
 router.delete("/profile/delete", protect, deleteAccount); // Delete account
 
 // Users management routes (admin only)
-router.get('/available_members', protect, getAvailableMembersForUserCreation);
-router.get("/users", protect, requireSuperAdmin, getUsers);
-router.get("/users/:id", protect, requireSuperAdmin, getUserById);
-router.post("/users/from-member", protect, requireSuperAdmin, createUserFromMember);
-router.patch("/users/:id", protect, requireSuperAdmin, adminUpdateUserById);
-router.put("/users/:id/password", protect, requireSuperAdmin, adminSetUserPassword);
-router.patch("/users/:id/status", protect, requireSuperAdmin, updateUserStatus);
+router.get('/available_members', addUsers, getAvailableMembersForUserCreation);
+router.get("/users", viewUsers, getUsers);
+router.get("/users/:id", viewUsers, getUserById);
+router.post("/users/from-member", addUsers, createUserFromMember);
+router.patch("/users/:id", editUsers, adminUpdateUserById);
+router.put("/users/:id/password", editUsers, adminSetUserPassword);
+router.patch("/users/:id/status", editUsers, updateUserStatus);
 router.get("/profile", protect, getProfile);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
