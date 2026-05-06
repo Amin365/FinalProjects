@@ -189,6 +189,17 @@ export const mainPermissions = async () => {
         "Manage Notification Settings",
         "Manage Announcements",
       ],
+      Volunteer: [
+        "View Programme",
+        "Manage Resource",
+        "Manage Enrollments",
+        "View Enrollments",
+        "Manage Attendance",
+        "View Attendance",
+        "View Notifications",
+        "Manage Notification Settings",
+        "Manage Announcements",
+      ],
 
     };
 

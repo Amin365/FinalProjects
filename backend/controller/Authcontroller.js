@@ -109,10 +109,10 @@ export const loginUser = async (req, res) => {
 
     const permissionSet = new Set();
     rolePermDocs.forEach((rp) => {
-      if (rp.permission?.permission) permissionSet.add(rp.permission.permission);
+      if (rp.permission?.permission) permissionSet.add(String(rp.permission.permission).trim());
     });
     userPermDocs.forEach((up) => {
-      if (up.permission?.permission) permissionSet.add(up.permission.permission);
+      if (up.permission?.permission) permissionSet.add(String(up.permission.permission).trim());
     });
 
     // Create payload for tokens
@@ -297,7 +297,8 @@ export const GetProfile = async (req, res, next) => {
       ...userPermissions.map(up => up.permission?.permission),
     ]
       .filter(Boolean)
-      .map(p => p.toLowerCase()); // 🔥 IMPORTANT (matches frontend)
+      .map(p => String(p).trim())
+      .filter(Boolean);
 
     //  Remove duplicates
     const uniquePermissions = [...new Set(permissions)];

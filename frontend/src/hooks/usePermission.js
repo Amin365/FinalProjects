@@ -5,6 +5,14 @@
 
 import { useSelector } from "react-redux";
 import { useMemo } from "react";
+import {
+  getPermissionName,
+  getPermissionSet,
+  getRoleName,
+  hasAllPermissions,
+  hasAnyPermission,
+  isAdminRoleName,
+} from "@/lib/permissions";
 
 /**
  * Hook to check if user has specific permission(s)
@@ -27,25 +35,18 @@ export function usePermission(permissions, options = {}) {
     }
 
     const userPermissions = user.permissions || [];
-    const normalizedUserPerms = new Set(
-      userPermissions.map((p) => String(p).toLowerCase())
-    );
-
+    const permissionSet = getPermissionSet(userPermissions, user.role?.permissions);
     const permArray = Array.isArray(permissions) ? permissions : [permissions];
-    const normalizedRequired = permArray.map((p) => String(p).toLowerCase());
-
-    let hasPermission = false;
-    if (requireAll) {
-      hasPermission = normalizedRequired.every((p) => normalizedUserPerms.has(p));
-    } else {
-      hasPermission = normalizedRequired.some((p) => normalizedUserPerms.has(p));
-    }
+    const normalizedRequired = permArray.map(getPermissionName).filter(Boolean);
+    const hasPermission = requireAll
+      ? hasAllPermissions(permissionSet, normalizedRequired)
+      : hasAnyPermission(permissionSet, normalizedRequired);
 
     return {
       hasPermission,
       isLoading: false,
       permissions: userPermissions,
-      missingPermissions: normalizedRequired.filter((p) => !normalizedUserPerms.has(p)),
+      missingPermissions: normalizedRequired.filter((p) => !permissionSet.has(p)),
     };
   }, [user, permissions, requireAll]);
 }
@@ -67,12 +68,11 @@ export function useRole(roles) {
       };
     }
 
-    const roleName = typeof user.role === "object" 
-      ? user.role.role || user.role.name 
-      : user.role;
+    const roleName = getRoleName(user);
     
     const roleArray = Array.isArray(roles) ? roles : [roles];
-    const hasRole = roleArray.includes(roleName);
+    const normalizedRoles = roleArray.map(getPermissionName).filter(Boolean);
+    const hasRole = normalizedRoles.includes(roleName);
 
     return {
       hasRole,
@@ -106,9 +106,9 @@ export function useAccess(roles = [], permissions = []) {
  * @returns {Object} Admin check results
  */
 export function useIsAdmin() {
-  const { hasRole, roleName } = useRole(["Super Admin", "Admin"]);
+  const { roleName } = useRole(["Super Admin", "Admin"]);
   return {
-    isAdmin: hasRole,
+    isAdmin: isAdminRoleName(roleName),
     roleName,
   };
 }

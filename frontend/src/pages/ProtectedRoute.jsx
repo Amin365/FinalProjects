@@ -15,13 +15,16 @@ function ProtectedRoute({ children }) {
 
   // Fetch current user only if we have a token
   const { data, isSuccess, isLoading, isError } = useQuery({
-    queryKey: ["CurrentUser"],
+    queryKey: ["CurrentUser", token],
     queryFn: async () => {
       const response = await api.get('/auth/me')
       return response.data
     },
     enabled: !!token,
     retry: 1,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   })
 
   useEffect(() => {

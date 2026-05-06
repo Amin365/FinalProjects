@@ -1,8 +1,9 @@
 
 
 export const requireRole = (roles = []) => (req, res, next) => {
-  const roleName = req.user?.role?.role || req.user?.role;
-  if (!req.user || !roles.includes(roleName)) {
+  const roleName = String(req.user?.role?.role || req.user?.role || "").trim().toLowerCase();
+  const allowedRoles = roles.map((role) => String(role).trim().toLowerCase());
+  if (!req.user || !allowedRoles.includes(roleName)) {
     return res.status(403).json({ message: "Access denied" });
   }
   return next();
@@ -28,8 +29,8 @@ export const requirePermission = (permissions, options = {}) => async (req, res,
     const permArray = Array.isArray(permissions) ? permissions : [permissions];
 
     // Normalize permissions to lowercase for comparison
-    const normalizedUserPerms = new Set(userPermissions.map((p) => String(p).toLowerCase()));
-    const normalizedRequired = permArray.map((p) => String(p).toLowerCase());
+    const normalizedUserPerms = new Set(userPermissions.map((p) => String(p).trim().toLowerCase()).filter(Boolean));
+    const normalizedRequired = permArray.map((p) => String(p).trim().toLowerCase()).filter(Boolean);
 
     let hasAccess = false;
 
@@ -65,16 +66,16 @@ export const requireRoleOrPermission = (roles = [], permissions = []) => async (
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const roleName = req.user?.role?.role || req.user?.role;
-    const hasRole = roles.includes(roleName);
+    const roleName = String(req.user?.role?.role || req.user?.role || "").trim().toLowerCase();
+    const hasRole = roles.map((role) => String(role).trim().toLowerCase()).includes(roleName);
 
     if (hasRole) {
       return next();
     }
 
     const userPermissions = req.user.permissions || [];
-    const normalizedUserPerms = new Set(userPermissions.map((p) => String(p).toLowerCase()));
-    const hasPermission = permissions.some((p) => normalizedUserPerms.has(String(p).toLowerCase()));
+    const normalizedUserPerms = new Set(userPermissions.map((p) => String(p).trim().toLowerCase()).filter(Boolean));
+    const hasPermission = permissions.some((p) => normalizedUserPerms.has(String(p).trim().toLowerCase()));
 
     if (hasPermission) {
       return next();

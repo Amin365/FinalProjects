@@ -28,6 +28,12 @@ import { NavUser } from "./nav-user";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api/apislice";
+import {
+  getPermissionSet,
+  getRoleName,
+  hasAnyPermission,
+  isAdminRoleName,
+} from "@/lib/permissions";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid, isActive: true },
@@ -35,7 +41,7 @@ const NAV_ITEMS = [
   { title: "Permissions", url: "/dashboard/permissions", icon: Settings, permissions: ["Manage Permissions", "View Role"] },
   { title: "Books", url: "/dashboard/books", icon: BookOpen, permissions: ["Manage Books"] },
   { title: "Members", url: "/dashboard/members", icon: Users2, permissions: ["Manage Members"] },
-  { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen, permissions: ["Manage Issues ","Manage Books"] },
+  { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen, permissions: ["Manage Issues", "Manage Books"] },
   { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList, permissions: ["Manage Issues"] },
   { title: "Reservations", url: "/dashboard/reservations", icon: BookMarked, permissions: ["Manage Reservations"] },
   { title: "Programs Management", url: "/dashboard/programme", icon: FileChartColumn, permissions: ["Manage Programme"] },
@@ -53,32 +59,8 @@ const NAV_ITEMS = [
   { title: "System Health", url: "/dashboard/system-health", icon: ActivityIcon, permissions: ["View System Health"] },
 ];
 
-const isAdminRoleName = (roleName = "") =>
-  /super\s*admin/i.test(roleName) || /^admin$/i.test(roleName);
-
-const getRoleName = (profileData, user) => {
-  const roleSource = profileData?.user?.role || user?.role;
-  if (!roleSource) return "";
-  if (typeof roleSource === "object") {
-    return String(roleSource.role || roleSource.name || roleSource.title || "").toLowerCase();
-  }
-  return String(roleSource).toLowerCase();
-};
-
-const toPermissionSet = (permissions = []) =>
-  new Set(permissions.map((p) => String(p).toLowerCase()));
-
-const hasAnyPermission = (permSet, permissions = []) => {
-  if (!permissions?.length) return true;
-  return permissions.some((p) => permSet.has(String(p).toLowerCase()));
-};
-
 export function AppSidebar(props) {
   const { user, token } = useSelector((state) => state.auth);
-
-  if (!token) {
-    return null;
-  }
 
   const { data: profileData } = useQuery({
     queryKey: ["sidebar-profile", token],
@@ -92,9 +74,16 @@ export function AppSidebar(props) {
     refetchOnWindowFocus: true,
   });
 
-  const roleName = React.useMemo(() => getRoleName(profileData, user), [profileData, user]);
+  const currentUser = profileData?.user || user;
+  const roleName = React.useMemo(() => getRoleName(currentUser), [currentUser]);
   const permissionSet = React.useMemo(
-    () => toPermissionSet(profileData?.user?.permissions || user?.permissions || []),
+    () =>
+      getPermissionSet(
+        profileData?.user?.permissions,
+        profileData?.user?.role?.permissions,
+        user?.permissions,
+        user?.role?.permissions
+      ),
     [profileData, user]
   );
 
@@ -110,6 +99,10 @@ export function AppSidebar(props) {
     }
     return items;
   }, [roleName, permissionSet]);
+
+  if (!token) {
+    return null;
+  }
 
   return (
     <Sidebar collapsible="icon" {...props}>

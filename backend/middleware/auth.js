@@ -28,10 +28,10 @@ export const protect =async(req,res,next)=>{
 
             const permissionSet = new Set()
             rolePermDocs.forEach((rp) => {
-                if (rp.permission?.permission) permissionSet.add(rp.permission.permission)
+                if (rp.permission?.permission) permissionSet.add(String(rp.permission.permission).trim())
             })
             userPermDocs.forEach((up) => {
-                if (up.permission?.permission) permissionSet.add(up.permission.permission)
+                if (up.permission?.permission) permissionSet.add(String(up.permission.permission).trim())
             })
 
             req.user = {
@@ -73,10 +73,10 @@ export const optionalProtect = async (req, res, next) => {
 
         const permissionSet = new Set()
         rolePermDocs.forEach((rp) => {
-            if (rp.permission?.permission) permissionSet.add(rp.permission.permission)
+            if (rp.permission?.permission) permissionSet.add(String(rp.permission.permission).trim())
         })
         userPermDocs.forEach((up) => {
-            if (up.permission?.permission) permissionSet.add(up.permission.permission)
+            if (up.permission?.permission) permissionSet.add(String(up.permission.permission).trim())
         })
 
         req.user = {
