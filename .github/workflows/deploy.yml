@@ -1,4 +1,4 @@
-name: "Deploy (VPS)"
+name: Deploy (VPS)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -14,11 +14,12 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (for metadata only)
         uses: actions/checkout@v4
 
-      - name: Deploy over SSH (git pull + build + pm2 reload)
+      - name: Deploy over SSH (git pull + build + pm2 reload + copy frontend)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -37,9 +38,7 @@ jobs:
             echo "==> Go to app directory"
             cd "$APP_PATH"
 
-            # If APP_PATH is a parent folder (e.g. /root/FinalProjects) and the repo
-            # is cloned into a subfolder (e.g. /root/FinalProjects/finalproject),
-            # automatically enter it.
+            # Auto-enter subfolder if needed
             if [ ! -f "package.json" ] && [ -d "finalproject" ] && [ -f "finalproject/package.json" ]; then
               cd "finalproject"
             fi
@@ -56,18 +55,16 @@ jobs:
             echo "==> Build frontend"
             npm run build --prefix frontend
 
-            echo "==> Restart via pm2"
+            echo "==> Copy build to Nginx root"
+            rm -rf /var/www/html/*
+            cp -r frontend/dist/* /var/www/html/
+
+            echo "==> Fix permissions (optional but safe)"
+            chown -R www-data:www-data /var/www/html
+            chmod -R 755 /var/www/html
+
+            echo "==> Restart backend (pm2)"
             pm2 reload "$PM2_APP_NAME" --update-env
             pm2 save
 
-            echo "==> Done"
-
-# Required GitHub Secrets:
-# - VPS_HOST        e.g. 161.35.125.74
-# - VPS_SSH_KEY     private key that can SSH into the VPS
-# - VPS_APP_PATH    OPTIONAL. Defaults to /root/FinalProjects (will auto-enter ./finalproject if present)
-# - PM2_APP_NAME    OPTIONAL. Defaults to backend
-#
-# Notes:
-# - Your VPS must already have: Node.js, pm2, git, and the repo cloned at VPS_APP_PATH.
-# - Your server-side .env must exist on the VPS (do NOT commit .env to git).
+            echo "==> Done 🚀"
