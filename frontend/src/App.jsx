@@ -89,16 +89,7 @@ function App() {
 
        
         <Route path="/" element={<Homepage />} />
-           <Route
-             path="/programmecards"
-             element={
-               <ProtectedRoute>
-                 <Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}>
-                   <ProgrammeCard />
-                 </Suspense>
-               </ProtectedRoute>
-             }
-           />
+           <Route path="/programmecards" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeCard /></Suspense>} />
  
            <Route path="/volunteer" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><TeamVolunteer /></Suspense>} />
  

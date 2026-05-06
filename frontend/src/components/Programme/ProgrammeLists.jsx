@@ -185,7 +185,7 @@ const mapProgramToCard = (program) => {
 };
 
 const fetchPrograms = async () => {
-  const res = await api.get("/programs", { params: { page: 1, limit: 200 } });
+  const res = await api.get("/programs", { params: { page: 1, limit: 200 }, skipAuth: true });
   const raw = res.data?.data || [];
   const sorted = [...raw].sort((a, b) => {
     const aTime = new Date(a?.createdAt || a?.startDate || 0).getTime() || 0;
@@ -505,7 +505,9 @@ const EnrollmentDialog = ({ program, onClose }) => {
 
   const enrollMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await api.post(`/programs/${program._id}/enroll`, payload);
+      const res = await api.post(`/programs/${program._id}/enroll`, payload, {
+        skipAuth: !isDashboardRoute,
+      });
       return res.data;
     },
     onSuccess: (data) => {
@@ -900,6 +902,7 @@ const ProgramsPage = () => {
           limit: 200,
           ...(isInstructorDashboard ? { mine: true } : {}),
         },
+        skipAuth: !isInstructorDashboard,
       });
       const raw = res.data?.data || [];
       const sorted = [...raw].sort((a, b) => {
@@ -919,7 +922,7 @@ const ProgramsPage = () => {
       const res = await api.get("/users/me/enrollments");
       return res.data;
     },
-    enabled: Boolean(token),
+    enabled: Boolean(token && isDashboardProgrammeCards),
     staleTime: 30_000,
   });
 

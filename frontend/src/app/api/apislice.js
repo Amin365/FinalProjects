@@ -17,6 +17,11 @@ const api = axios.create({
 
 //  Attach token on requests
 api.interceptors.request.use((config) => {
+  if (config.skipAuth) {
+    delete config.skipAuth;
+    return config;
+  }
+
   const state = store.getState();
   const token = state.auth?.token;
   if (token) {
