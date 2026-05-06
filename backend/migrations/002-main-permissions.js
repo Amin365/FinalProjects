@@ -94,9 +94,12 @@ export const mainPermissions = async () => {
     // 
     // Assign permissions to system roles
     // 
+    const normalizeRoleName = (value = "") =>
+      String(value).trim().replace(/\s+/g, " ").toLowerCase();
+
     const rolesData = await Role.find({});
     const roles = {};
-    rolesData.forEach(r => { roles[r.role] = r; });
+    rolesData.forEach(r => { roles[normalizeRoleName(r.role)] = r; });
 
     // Prefer the canonical superadmin; fallback to any user if needed
     let SUPER_ADMIN_USER = await User.findOne({ username: "aminbashir07" });
@@ -105,11 +108,11 @@ export const mainPermissions = async () => {
     }
 
     // Assign all permissions to Super Admin
-    if (roles["Super Admin"] && SUPER_ADMIN_USER) {
+    if (roles[normalizeRoleName("Super Admin")] && SUPER_ADMIN_USER) {
       for (const perm of Object.values(permissions)) {
         await RolePermission.findOneAndUpdate(
-          { role: roles["Super Admin"]._id, permission: perm._id },
-          { role: roles["Super Admin"]._id, permission: perm._id, system: true, added_by: SUPER_ADMIN_USER._id },
+          { role: roles[normalizeRoleName("Super Admin")]._id, permission: perm._id },
+          { role: roles[normalizeRoleName("Super Admin")]._id, permission: perm._id, system: true, added_by: SUPER_ADMIN_USER._id },
           { upsert: true, new: true }
         );
 
@@ -160,9 +163,11 @@ export const mainPermissions = async () => {
         "Manage Members",
         "Manage Issues",
         "Manage Reservations",
-        "Manage Resource",
-         "Manage Programme",
+        "View Programme",
+        "Manage Programme",
         "View Teacher",
+        "View Resource",
+        "Manage Resource",
         "View Enrollments",
         "View Attendance",
         "View Notifications",
@@ -204,7 +209,7 @@ export const mainPermissions = async () => {
     };
 
 for (const [roleName, permNames] of Object.entries(rolePermissionMap)) {
-  const roleDoc = roles[roleName];
+  const roleDoc = roles[normalizeRoleName(roleName)];
   if (!roleDoc) continue;
 
   for (const permName of permNames) {
