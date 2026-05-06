@@ -53,25 +53,25 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://degahburpubliclibrary.page"
-  
+  "https://degahburpubliclibrary.page",
+  "https://www.degahburpubliclibrary.page"
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // Postman, server-side requests
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
+    console.log("Blocked CORS origin:", origin);
+    return callback(null, false); // don’t throw error
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 // Serve locally uploaded files (e.g. /uploads/<filename>)
 // Mounted AFTER cors() so downloads (fetch) work cross-origin in dev.
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -84,7 +84,7 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://images.unsplash.com", "https://i.pravatar.cc"],
-        connectSrc: ["'self'", "https://jjureadingclub.com", "wss://jjureadingclub.com", "ws://localhost:5000"], // allow API + Socket.IO
+        connectSrc: ["'self'", "https://degahburpubliclibrary.page", "wss://degahburpubliclibrary.page", "ws://localhost:5000"], // allow API + Socket.IO
         frameAncestors: ["'none'"],
       },
     },

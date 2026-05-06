@@ -179,7 +179,8 @@ export const mainPermissions = async () => {
       ],
       Teacher: [
         "View Programme",
-        "View Resource",
+        "Manage Resource",
+
         "Manage Enrollments",
         "View Enrollments",
         "Manage Attendance",
