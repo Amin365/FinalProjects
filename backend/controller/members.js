@@ -28,8 +28,8 @@ async function findDefaultMemberRole() {
 async function findTeacherRole() {
   return Role.findOne({
     $or: [
-      { role: { $regex: /^library\s*staff$/i } },
-      { plural: { $regex: /^library\s*staff$/i } },
+      // { role: { $regex: /^library\s*staff$/i } },
+      // { plural: { $regex: /^library\s*staff$/i } },
       { role: { $regex: /^teacher$/i } },
       { plural: { $regex: /^teachers?$/i } },
     ],
@@ -641,7 +641,17 @@ export const bulkCreateMembers = async (req, res, next) => {
 
 export const JoinClub = async (req, res, next) => {
   try {
-    const { FullName, phone, email } = req.body;
+    const {
+      FullName,
+      phone,
+      email,
+      education_level,
+      institution,
+      readyToTeach,
+      teachAreas,
+      availability,
+      motivation,
+    } = req.body;
 
     if (!FullName || !phone || !email) {
       return res.status(400).json({
@@ -660,6 +670,12 @@ export const JoinClub = async (req, res, next) => {
       FullName,
       phone,
       email,
+      education_level,
+      institution,
+      readyToTeach,
+      teachAreas: Array.isArray(teachAreas) ? teachAreas : [],
+      availability,
+      motivation,
       status: "Pending",
     });
 

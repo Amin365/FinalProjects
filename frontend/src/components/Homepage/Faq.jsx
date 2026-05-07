@@ -50,7 +50,7 @@ export default function ScrollFAQAccordion({
       id: 5,
       question: "Is the club free?",
       answer:
-        "Yes, joining the JJU Reading Club is completely free of charge for all members.",
+        "Yes, joining the DPL is completely free of charge for all members.",
     },
   ],
   className,

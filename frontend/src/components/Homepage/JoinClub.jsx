@@ -282,7 +282,7 @@ const EMPTY = {
   status: "Pending",
 };
 
-const JoinClub = ({ open, onOpenChange }) => {
+const JoinClub = ({ open, onOpenChange, onSuccess }) => {
   const [step,        setStep]        = React.useState(1);
   const [form,        setForm]        = React.useState(EMPTY);
   const [success,     setSuccess]     = React.useState(false);
@@ -334,6 +334,7 @@ const JoinClub = ({ open, onOpenChange }) => {
     onSuccess: (_, vars) => {
       const emails = JSON.parse(localStorage.getItem("joinedClubEmails") || "[]");
       localStorage.setItem("joinedClubEmails", JSON.stringify([...emails, vars.email]));
+      onSuccess?.();
       setSuccess(true);
       setTimeout(() => { setSuccess(false); setForm(EMPTY); onOpenChange(false); }, 4000);
     },
@@ -371,7 +372,7 @@ const JoinClub = ({ open, onOpenChange }) => {
                   </div>
                   <div>
                     <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Volunteer application</p>
-                    <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white leading-tight">Join the Reading Club</h2>
+                    <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white leading-tight">Join degahbur public Library</h2>
                   </div>
                 </div>
                 <button

@@ -5,6 +5,7 @@ import {
   getDashboardStats,
   getRecentActivity,
   getTopReaders,
+  getTopPrograms,
   getPopularBooks,
   getPendingApprovals,
 } from "../controller/DashboardController.js";
@@ -24,6 +25,7 @@ const dashboardLimiter = rateLimit({
 DashboardRouter.get("/dashboard/stats", dashboardLimiter, protect, getDashboardStats);
 DashboardRouter.get("/dashboard/activity", dashboardLimiter, protect, getRecentActivity);
 DashboardRouter.get("/dashboard/top-readers", dashboardLimiter, protect, getTopReaders);
+DashboardRouter.get("/dashboard/top-programs", dashboardLimiter, protect, getTopPrograms);
 DashboardRouter.get("/dashboard/popular-books", dashboardLimiter, protect, getPopularBooks);
 DashboardRouter.get("/dashboard/pending-approvals", dashboardLimiter, protect, getPendingApprovals);
 

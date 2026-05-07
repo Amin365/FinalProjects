@@ -28,21 +28,43 @@ const getTeacherScopeForRequest = (req) => {
   return "__deny__";
 };
 
-const isAdminRequest = (req) => {
-  const scope = getTeacherScopeForRequest(req);
-  return scope === null;
+const isAssignedTeacherForProgram = (program, teacherId) => {
+  if (!program || !teacherId) return false;
+  const normalizedTeacherId = String(teacherId);
+  const assistants = Array.isArray(program.assistants)
+    ? program.assistants.map(String)
+    : [];
+
+  return (
+    String(program.teacherId || "") === normalizedTeacherId ||
+    assistants.includes(normalizedTeacherId)
+  );
 };
 
-const ensureAdmin = (req, res) => {
+const ensureEnrollmentDecisionAccess = async (req, res, enrollment) => {
   if (!req.user?._id) {
     res.status(401).json({ message: "Unauthorized" });
-    return false;
+    return null;
   }
-  if (!isAdminRequest(req)) {
+
+  const program = await Program.findById(enrollment.programId).lean();
+  if (!program) {
+    res.status(404).json({ message: "Program not found" });
+    return null;
+  }
+
+  const teacherScope = getTeacherScopeForRequest(req);
+  if (teacherScope === "__deny__") {
     res.status(403).json({ message: "Forbidden" });
-    return false;
+    return null;
   }
-  return true;
+
+  if (teacherScope && !isAssignedTeacherForProgram(program, teacherScope)) {
+    res.status(403).json({ message: "Forbidden" });
+    return null;
+  }
+
+  return program;
 };
 
 const pickGuestEmail = (formData, reqBody) => {
@@ -211,8 +233,6 @@ export const createEnrollment = async (req, res) => {
 // If enrollment belongs to a guest (userId is email), create a Member+User and send setup-password welcome email.
 export const approveEnrollment = async (req, res) => {
   try {
-    if (!ensureAdmin(req, res)) return;
-
     const { id } = req.params;
     const enrollment = await Enrollment.findById(id);
     if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
@@ -220,8 +240,8 @@ export const approveEnrollment = async (req, res) => {
       return res.status(400).json({ message: `Only pending enrollments can be approved (current: ${enrollment.status})` });
     }
 
-    const program = await Program.findById(enrollment.programId).lean();
-    if (!program) return res.status(404).json({ message: "Program not found" });
+    const program = await ensureEnrollmentDecisionAccess(req, res, enrollment);
+    if (!program) return;
 
     const formData = enrollment.formData || {};
     const email = pickGuestEmail(formData, formData) || String(enrollment.userId || "").trim().toLowerCase();
@@ -333,8 +353,6 @@ export const approveEnrollment = async (req, res) => {
 // Admin: reject a pending enrollment.
 export const rejectEnrollment = async (req, res) => {
   try {
-    if (!ensureAdmin(req, res)) return;
-
     const { id } = req.params;
     const { reason } = req.body || {};
 
@@ -343,6 +361,8 @@ export const rejectEnrollment = async (req, res) => {
     if (enrollment.status !== "pending") {
       return res.status(400).json({ message: `Only pending enrollments can be rejected (current: ${enrollment.status})` });
     }
+
+    if (!(await ensureEnrollmentDecisionAccess(req, res, enrollment))) return;
 
     enrollment.status = "rejected";
     if (typeof reason === "string" && reason.trim()) {

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2 } from "lucide-react";
 
 export function IDCardFront({
-  companyName = "JJU  READING CLUB",
+  companyName = "Degahbur Public Library",
   employeeName = "Employee Name",
 //   jobTitle = "Job Title",
   department = "Department",

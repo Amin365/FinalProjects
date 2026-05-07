@@ -7,7 +7,10 @@ const  ClubreqSchema = new mongoose.Schema({
     phone:{type:String,required:true},
     education_level:{type:String,trim:true},
     institution:{type:String,trim:true},
-    
+    readyToTeach:{type:Boolean,default:null},
+    teachAreas:{type:[String],default:[]},
+    availability:{type:String,trim:true,default:""},
+    motivation:{type:String,trim:true,default:""},
 
 
     status:{type:String,enum:["Pending","Approved","Rejected"],default:"Pending"},
@@ -23,4 +26,3 @@ const  ClubreqSchema = new mongoose.Schema({
 )
 
 export default mongoose.model("Clubreq",ClubreqSchema);
-

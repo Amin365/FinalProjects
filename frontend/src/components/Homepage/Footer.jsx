@@ -71,7 +71,7 @@ export default function Footer({clubLogoSrc}) {
              
             <span className="text-base font-semibold">
             
-            Naadiga Akhriska iyo Qoralka  Jaamacada Jigjiga</span>
+            DPL</span>
           </div>
 
           <p className="text-muted-foreground mt-2 text-sm">
@@ -79,7 +79,7 @@ export default function Footer({clubLogoSrc}) {
           </p>
 
           <p className="text-muted-foreground mt-6 text-sm">
-            © {new Date().getFullYear()} Naadiga Akhriska iyo Qoralka  Jaamacada Jigjiga . All rights reserved.
+            © {new Date().getFullYear()} DPL . All rights reserved.
           </p>
         </AnimatedContainer>
 

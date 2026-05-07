@@ -437,7 +437,7 @@ export const resendInvite = async (req, res, next) => {
         preheader: "Set up your account password",
         greeting: `Hello ${user.first_name}`,
         bodyLines: [
-          "This is a reminder to set up your JJU Reading Club account.",
+          "This is a reminder to set up your DPL account.",
           "Please click the button below to set up your password.",
           "This link will expire in 72 hours.",
         ],

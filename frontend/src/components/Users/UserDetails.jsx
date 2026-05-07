@@ -102,6 +102,12 @@ export default function UserDetailsAdmin() {
   const initials      = useMemo(() => [form.first_name?.[0], form.last_name?.[0]].filter(Boolean).join("").toUpperCase() || "U", [form]);
   const selectedRole  = useMemo(() => roles.find(r => String(r._id) === String(form.role_id)), [roles, form.role_id]);
   const statusMeta    = STATUS_META[form.status] || STATUS_META.Active;
+  const isPermanentDefaultUser = useMemo(
+    () =>
+      String(userData?.username || form.username || "").trim().toLowerCase() === "aminbashir07" &&
+      String(userData?.email || form.email || "").trim().toLowerCase() === "aminbashir07@example.com",
+    [userData, form.username, form.email]
+  );
 
   useEffect(() => {
     if (!userData) return;
@@ -138,11 +144,19 @@ export default function UserDetailsAdmin() {
   });
 
   const handleSave = () => {
+    if (isPermanentDefaultUser) {
+      toast.error("The default seeded Super Admin user cannot be edited");
+      return;
+    }
     const payload = { ...form, role_id: form.role_id ? String(form.role_id) : null };
     updateMutation.mutate(payload);
   };
 
   const handlePasswordUpdate = () => {
+    if (isPermanentDefaultUser) {
+      toast.error("The default seeded Super Admin user cannot be edited");
+      return;
+    }
     if (!passwordData.newPassword) { toast.error("Please enter a new password"); return; }
     if (passwordData.newPassword !== passwordData.confirmPassword) { toast.error("Passwords do not match"); return; }
     passwordMutation.mutate(passwordData);
@@ -171,7 +185,7 @@ export default function UserDetailsAdmin() {
 
           <button
             onClick={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || isPermanentDefaultUser}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-extrabold shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
           >
             {updateMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -181,6 +195,11 @@ export default function UserDetailsAdmin() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 pt-8">
+        {isPermanentDefaultUser && (
+          <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm font-semibold text-orange-700 dark:border-orange-800/40 dark:bg-orange-900/20 dark:text-orange-300">
+            This is the default seeded Super Admin account. Its details are permanent and cannot be edited or deleted.
+          </div>
+        )}
 
         {/*  Profile hero card  */}
         <div className="bg-white dark:bg-gray-900 rounded-3xl border border-slate-100 dark:border-gray-800 shadow-sm overflow-hidden mb-8">
@@ -272,7 +291,7 @@ export default function UserDetailsAdmin() {
                 </div>
               </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <fieldset disabled={isPermanentDefaultUser} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 disabled:opacity-70">
                 <FieldBox label="First name" req>
                   <input className={inputCls} value={form.first_name} placeholder="First name"
                     onChange={e => setForm(s => ({ ...s, first_name: e.target.value }))} />
@@ -341,12 +360,12 @@ export default function UserDetailsAdmin() {
                     />
                   </FieldBox>
                 </div>
-              </div>
+              </fieldset>
 
               <div className="px-6 py-4 border-t border-slate-100 dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/40 rounded-b-2xl flex justify-end">
                 <button
                   onClick={handleSave}
-                  disabled={updateMutation.isPending}
+                  disabled={updateMutation.isPending || isPermanentDefaultUser}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-extrabold shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   {updateMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -403,7 +422,7 @@ export default function UserDetailsAdmin() {
                 </div>
               </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <fieldset disabled={isPermanentDefaultUser} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 disabled:opacity-70">
                 {/* New password */}
                 <FieldBox label="New password" req>
                   <div className="relative">
@@ -477,12 +496,12 @@ export default function UserDetailsAdmin() {
                     </div>
                   </label>
                 </div>
-              </div>
+              </fieldset>
 
               <div className="px-6 py-4 border-t border-slate-100 dark:border-gray-800 bg-slate-50/50 dark:bg-gray-900/40 rounded-b-2xl flex justify-end">
                 <button
                   onClick={handlePasswordUpdate}
-                  disabled={passwordMutation.isPending}
+                  disabled={passwordMutation.isPending || isPermanentDefaultUser}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[13px] font-extrabold shadow-md shadow-orange-200 dark:shadow-orange-900/30 transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                   {passwordMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}

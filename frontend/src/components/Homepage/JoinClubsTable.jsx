@@ -1,9 +1,10 @@
 
 import React, { useEffect, useMemo, useState } from "react"
-import { Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, Eye } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, CheckCircle, XCircle, Eye, Plus } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import api from "@/app/api/apislice"
 import { cn } from "@/lib/utils"
+import JoinClub from "./JoinClub"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -143,6 +144,7 @@ const JoinClubsTable = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [reviewTarget, setReviewTarget] = useState(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["join-clubs", currentPage, limit, statusFilter],
@@ -193,13 +195,18 @@ const JoinClubsTable = () => {
   return (
     <div className="h-full flex flex-col gap-6 animate-in fade-in duration-500 p-4 dark:bg-gray-900">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-800 dark:text-white">
-          Join Club Requests
-        </h1>
-        <p className="text-sm mt-1 text-slate-500 dark:text-gray-300">
-          Review and manage reading club membership requests.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800 dark:text-white">
+            Teachers Managements
+          </h1>
+          <p className="text-sm mt-1 text-slate-500 dark:text-gray-300">
+            Review and manage Teachers .
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-orange-500 hover:bg-orange-600">
+          <Plus size={16} /> New Teacher 
+        </Button>
       </div>
 
       {/* Status tabs */}
@@ -369,6 +376,15 @@ const JoinClubsTable = () => {
           isLoading={updateStatusMutation.isPending}
         />
       )}
+
+      <JoinClub
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["join-clubs"] })
+          toast.success("Teacher request submitted")
+        }}
+      />
     </div>
   )
 }

@@ -6,6 +6,31 @@ import bcrypt from "bcryptjs";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
 import RefreshToken from "../models/RefreshToken.js";
 
+const findUserWithRole = (id) =>
+  User.findById(id).populate("role", "role plural system").exec();
+
+const isPermanentSuperAdminUser = (user) => {
+  return (
+    String(user?.username || "").trim().toLowerCase() === "aminbashir07" &&
+    String(user?.email || "").trim().toLowerCase() === "aminbashir07@example.com"
+  );
+};
+
+const ensureMutableUser = async (id, res) => {
+  const user = await findUserWithRole(id);
+  if (!user) {
+    res.status(404).json({ message: "User not found" });
+    return null;
+  }
+
+  if (isPermanentSuperAdminUser(user)) {
+    res.status(403).json({ message: "The default seeded Super Admin user cannot be edited or deleted" });
+    return null;
+  }
+
+  return user;
+};
+
 
 export const createUserFromMember = async (req, res, next) => {
   try {
@@ -215,6 +240,8 @@ export const updateUserStatus = async (req, res, next) => {
       return res.status(400).json({ message: `status must be one of: ${allowed.join(", ")}` });
     }
 
+    if (!(await ensureMutableUser(id, res))) return;
+
     const updated = await User.findByIdAndUpdate(
       id,
       { status, updated_by: req.user?._id || null },
@@ -240,6 +267,8 @@ export const adminUpdateUserById = async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid user id" });
     }
+
+    if (!(await ensureMutableUser(id, res))) return;
 
     const {
       first_name,
@@ -326,8 +355,8 @@ export const adminSetUserPassword = async (req, res, next) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    const user = await User.findById(id).exec();
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await ensureMutableUser(id, res);
+    if (!user) return;
 
     user.password = newPassword;
     if (typeof mustChangePassword === "boolean") {
@@ -377,6 +406,8 @@ export const updateProfile = async (req, res, next) => {
     const userId = req.user._id;
     const { name, bio, phone } = req.body || {};
     const profilePicture = req.file ? req.file.path : undefined; // Cloudinary URL
+
+    if (!(await ensureMutableUser(userId, res))) return;
 
     const updateData = {};
     if (name) {
@@ -431,6 +462,9 @@ export const changePassword = async (req, res, next) => {
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (isPermanentSuperAdminUser(await user.populate("role", "role plural system"))) {
+      return res.status(403).json({ message: "Permanent Super Admin users cannot be edited or deleted" });
+    }
 
     const isMatch = await user.matchPassword(currentPassword);
     if (!isMatch) {
@@ -454,6 +488,8 @@ export const changePassword = async (req, res, next) => {
 export const deleteAccount = async (req, res, next) => {
   try {
     const userId = req.user._id;
+
+    if (!(await ensureMutableUser(userId, res))) return;
 
     const deletedUser = await User.findByIdAndDelete(userId);
     if (!deletedUser) return res.status(404).json({ message: "User not found" });

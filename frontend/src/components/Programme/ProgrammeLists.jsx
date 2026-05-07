@@ -6,6 +6,7 @@ import api from "@/app/api/apislice";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router";
 import HeroHeader from '../Homepage/HeroSections';
+import Footer from "../Homepage/Footer";
 
 import {
   Clock, Users, Star, BookOpen, ChevronRight, ChevronLeft,
@@ -1042,6 +1043,12 @@ const ProgramsPage = () => {
           </Button>
         </div> */}
       </div>
+
+      {!isDashboardProgrammeCards && (
+        <div className="max-w-7xl mx-auto mt-20">
+          <Footer clubLogoSrc="/jjuclub.jpg" />
+        </div>
+      )}
 
       {enrollTarget && (
         isDashboardProgrammeCards ? (

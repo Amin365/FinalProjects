@@ -2,6 +2,8 @@ import Book from "../models/Books.js";
 import Member from "../models/Members.js";
 import Issue from "../models/Issue.js";
 import Clubreq from "../models/Clubreq.js";
+import Program from "../models/Program.js";
+import Enrollment from "../models/Enrollment.js";
 
 /**
  * GET /api/dashboard/stats
@@ -17,6 +19,7 @@ export const getDashboardStats = async (req, res) => {
       activeMembers,
       overdueIssues,
       pendingJoinRequests,
+      totalPrograms,
     ] = await Promise.all([
       Book.countDocuments(),
       Book.aggregate([{ $group: { _id: null, total: { $sum: "$availableCopies" } } }]),
@@ -25,6 +28,7 @@ export const getDashboardStats = async (req, res) => {
       Member.countDocuments({ status: "Active" }),
       Issue.countDocuments({ status: "Overdue" }),
       Clubreq.countDocuments({ status: "Pending" }),
+      Program.countDocuments(),
     ]);
 
     res.json({
@@ -35,6 +39,7 @@ export const getDashboardStats = async (req, res) => {
       activeMembers,
       overdueIssues,
       pendingJoinRequests,
+      totalPrograms,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -236,6 +241,42 @@ export const getPendingApprovals = async (req, res) => {
       pendingJoinRequests,
       overdueIssues,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /api/dashboard/top-programs
+ * Programmes ranked by total enrollments.
+ */
+export const getTopPrograms = async (req, res) => {
+  try {
+    const grouped = await Enrollment.aggregate([
+      { $match: { status: { $nin: ["cancelled", "rejected"] } } },
+      { $group: { _id: "$programId", enrollmentCount: { $sum: 1 } } },
+      { $sort: { enrollmentCount: -1 } },
+      { $limit: 10 },
+    ]);
+
+    const programIds = grouped.map((entry) => entry._id).filter(Boolean);
+    const programs = await Program.find({ _id: { $in: programIds } })
+      .select("title teacherId status capacity")
+      .lean();
+    const programMap = new Map(programs.map((program) => [String(program._id), program]));
+
+    const result = grouped.map((entry) => {
+      const program = programMap.get(String(entry._id));
+      return {
+        _id: entry._id,
+        title: program?.title || "Unknown programme",
+        status: program?.status || "",
+        capacity: program?.capacity ?? null,
+        enrollmentCount: entry.enrollmentCount,
+      };
+    });
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

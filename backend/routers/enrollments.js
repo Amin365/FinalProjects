@@ -34,9 +34,10 @@ router.post("/programs/:id/enroll", optionalProtect, upload.single("attachment")
 router.get("/enrollments", viewEnrollments, getAllEnrollments);
 router.get("/enrollments/:id", viewEnrollments, getEnrollmentById);
 
-// Admin decision endpoints
-router.post("/enrollments/:id/approve", manageEnrollments, approveEnrollment);
-router.post("/enrollments/:id/reject", manageEnrollments, rejectEnrollment);
+// Enrollment decision endpoints. The controller allows admins globally and
+// teachers/volunteers/library staff only for their assigned programs.
+router.post("/enrollments/:id/approve", protect, approveEnrollment);
+router.post("/enrollments/:id/reject", protect, rejectEnrollment);
 
 // GET /programs/:id/enrollments  (admin)
 router.get("/programs/:id/enrollments", viewEnrollments, getEnrollmentsForProgram);

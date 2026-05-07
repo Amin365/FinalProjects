@@ -5,6 +5,8 @@ import {
   User, Briefcase, MessageSquare, Sparkles,
 } from "lucide-react";
 import HeroHeader from '../Homepage/HeroSections'
+import JoinClub from "../Homepage/JoinClub";
+import Footer from "../Homepage/Footer";
 
 
 /* 
@@ -601,8 +603,9 @@ export default function TeamVolunteers() {
 
       </div>
 
-      {/* Dialog */}
-      {dialogOpen && <VolunteerDialog onClose={() => setDialogOpen(false)} />}
+      <Footer clubLogoSrc="/jjuclub.jpg" />
+
+      <JoinClub open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }

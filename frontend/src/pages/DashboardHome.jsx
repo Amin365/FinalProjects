@@ -132,8 +132,8 @@ function ActivityFeed({ events, loading }) {
   );
 }
 
-function TopReadersList({ readers, loading }) {
-  const safeReaders = asArray(readers);
+function TopProgramsList({ programs, loading }) {
+  const safePrograms = asArray(programs);
 
   if (loading) {
     return (
@@ -152,27 +152,27 @@ function TopReadersList({ readers, loading }) {
     );
   }
 
-  if (!safeReaders.length) {
+  if (!safePrograms.length) {
     return (
-      <p className="text-sm text-muted-foreground py-4 text-center">No reading reports yet.</p>
+      <p className="text-sm text-muted-foreground py-4 text-center">No programme enrollments yet.</p>
     );
   }
 
   return (
     <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-      {safeReaders.map((r, i) => (
-        <div key={r._id ?? i} className="flex items-center gap-3 border rounded-md p-3">
+      {safePrograms.map((program, i) => (
+        <div key={program._id ?? program.programId ?? i} className="flex items-center gap-3 border rounded-md p-3">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
             {i + 1}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{r.name}</p>
-            {r.memberCode && (
-              <p className="text-xs text-muted-foreground">{r.memberCode}</p>
+            <p className="text-sm font-medium truncate">{program.title || "Unknown programme"}</p>
+            {program.status && (
+              <p className="text-xs text-muted-foreground capitalize">{program.status}</p>
             )}
           </div>
           <Badge variant="secondary" className="shrink-0">
-            {r.reportCount} {r.reportCount === 1 ? "report" : "reports"}
+            {program.enrollmentCount ?? program.enrollments ?? 0} enrolled
           </Badge>
         </div>
       ))}
@@ -345,145 +345,145 @@ function PendingApprovals({ data, loading }) {
 
 /*  main page  */
 
-function ActiveChallengesWidget() {
-  const { data: challenges = [], isLoading } = useQuery({
-    queryKey: ["challenges", "active-widget"],
-    queryFn: async () => {
-      const res = await api.get("/challenges", { params: { status: "Active" } });
-      const list = extractArrayPayload(res.data);
-      return list.slice(0, 3);
-    },
-    staleTime: 120_000,
-  });
+// function ActiveChallengesWidget() {
+//   const { data: challenges = [], isLoading } = useQuery({
+//     queryKey: ["challenges", "active-widget"],
+//     queryFn: async () => {
+//       const res = await api.get("/challenges", { params: { status: "Active" } });
+//       const list = extractArrayPayload(res.data);
+//       return list.slice(0, 3);
+//     },
+//     staleTime: 120_000,
+//   });
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Trophy className="h-5 w-5 text-yellow-400" />
-            Active Challenges
-          </CardTitle>
-          <Link
-            to="/dashboard/challenges"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
-          >
-            View all <ChevronRight className="h-3 w-3" />
-          </Link>
-        </div>
-        <CardDescription>Join a reading challenge</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : challenges.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-3 text-center">No active challenges right now.</p>
-        ) : (
-          <div className="space-y-2">
-            {challenges.map((c) => (
-              <Link key={c._id} to={`/dashboard/challenges/${c._id}`}>
-                <div className="flex items-center gap-3 border rounded-md p-3 hover:bg-muted/50 transition cursor-pointer">
-                  <Trophy className="h-4 w-4 text-yellow-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{c.title}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                      <Calendar className="h-3 w-3" />
-                      <span>
-                        {c.endDate
-                          ? `Ends ${new Date(c.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
-                          : c.type}
-                      </span>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs border-green-500/30 text-green-400 shrink-0">
-                    {c.type}
-                  </Badge>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+//   return (
+//     <Card>
+//       <CardHeader>
+//         <div className="flex items-center justify-between">
+//           <CardTitle className="flex items-center gap-2 text-base">
+//             <Trophy className="h-5 w-5 text-yellow-400" />
+//             Active Challenges
+//           </CardTitle>
+//           <Link
+//             to="/dashboard/challenges"
+//             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
+//           >
+//             View all <ChevronRight className="h-3 w-3" />
+//           </Link>
+//         </div>
+//         <CardDescription>Join a reading challenge</CardDescription>
+//       </CardHeader>
+//       <CardContent>
+//         {isLoading ? (
+//           <div className="space-y-2">
+//             {Array.from({ length: 3 }).map((_, i) => (
+//               <Skeleton key={i} className="h-12 w-full" />
+//             ))}
+//           </div>
+//         ) : challenges.length === 0 ? (
+//           <p className="text-sm text-muted-foreground py-3 text-center">No active challenges right now.</p>
+//         ) : (
+//           <div className="space-y-2">
+//             {challenges.map((c) => (
+//               <Link key={c._id} to={`/dashboard/challenges/${c._id}`}>
+//                 <div className="flex items-center gap-3 border rounded-md p-3 hover:bg-muted/50 transition cursor-pointer">
+//                   <Trophy className="h-4 w-4 text-yellow-400 shrink-0" />
+//                   <div className="flex-1 min-w-0">
+//                     <p className="text-sm font-medium truncate">{c.title}</p>
+//                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+//                       <Calendar className="h-3 w-3" />
+//                       <span>
+//                         {c.endDate
+//                           ? `Ends ${new Date(c.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+//                           : c.type}
+//                       </span>
+//                     </div>
+//                   </div>
+//                   <Badge variant="outline" className="text-xs border-green-500/30 text-green-400 shrink-0">
+//                     {c.type}
+//                   </Badge>
+//                 </div>
+//               </Link>
+//             ))}
+//           </div>
+//         )}
+//       </CardContent>
+//     </Card>
+//   );
+// }
 
-function RecentAchievementsWidget() {
-  const { data: myAchievements = [], isLoading } = useQuery({
-    queryKey: ["my-achievements-widget"],
-    queryFn: async () => {
-      const res = await api.get("/users/me/achievements");
-      const list = extractArrayPayload(res.data);
-      // Keep only unlocked entries (those with an unlockedAt date or a nested achievement object)
-      return [...list]
-        .filter((a) => a.unlockedAt || a.achievement)
-        .sort((a, b) => new Date(b.unlockedAt || b.createdAt || 0) - new Date(a.unlockedAt || a.createdAt || 0))
-        .slice(0, 3);
-    },
-    staleTime: 120_000,
-  });
+// function RecentAchievementsWidget() {
+//   const { data: myAchievements = [], isLoading } = useQuery({
+//     queryKey: ["my-achievements-widget"],
+//     queryFn: async () => {
+//       const res = await api.get("/users/me/achievements");
+//       const list = extractArrayPayload(res.data);
+//       // Keep only unlocked entries (those with an unlockedAt date or a nested achievement object)
+//       return [...list]
+//         .filter((a) => a.unlockedAt || a.achievement)
+//         .sort((a, b) => new Date(b.unlockedAt || b.createdAt || 0) - new Date(a.unlockedAt || a.createdAt || 0))
+//         .slice(0, 3);
+//     },
+//     staleTime: 120_000,
+//   });
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Award className="h-5 w-5 text-purple-400" />
-            My Achievements
-          </CardTitle>
-          <Link
-            to="/dashboard/achievements"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
-          >
-            View all <ChevronRight className="h-3 w-3" />
-          </Link>
-        </div>
-        <CardDescription>Recently unlocked badges</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : myAchievements.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-3 text-center">No achievements yet. Keep reading!</p>
-        ) : (
-          <div className="space-y-2">
-            {myAchievements.map((a, i) => {
-              const ach = a.achievement || a;
-              return (
-                <div key={ach._id ?? i} className="flex items-center gap-3 border rounded-md p-3">
-                  <span className="text-2xl leading-none shrink-0">{ach.icon || "🏅"}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{ach.title || ach.name}</p>
-                    {(a.unlockedAt || a.createdAt) && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(a.unlockedAt || a.createdAt).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </p>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-400 shrink-0">
-                    ✓ Earned
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+//   return (
+//     <Card>
+//       <CardHeader>
+//         <div className="flex items-center justify-between">
+//           <CardTitle className="flex items-center gap-2 text-base">
+//             <Award className="h-5 w-5 text-purple-400" />
+//             My Achievements
+//           </CardTitle>
+//           <Link
+//             to="/dashboard/achievements"
+//             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
+//           >
+//             View all <ChevronRight className="h-3 w-3" />
+//           </Link>
+//         </div>
+//         <CardDescription>Recently unlocked badges</CardDescription>
+//       </CardHeader>
+//       <CardContent>
+//         {isLoading ? (
+//           <div className="space-y-2">
+//             {Array.from({ length: 3 }).map((_, i) => (
+//               <Skeleton key={i} className="h-12 w-full" />
+//             ))}
+//           </div>
+//         ) : myAchievements.length === 0 ? (
+//           <p className="text-sm text-muted-foreground py-3 text-center">No achievements yet. Keep reading!</p>
+//         ) : (
+//           <div className="space-y-2">
+//             {myAchievements.map((a, i) => {
+//               const ach = a.achievement || a;
+//               return (
+//                 <div key={ach._id ?? i} className="flex items-center gap-3 border rounded-md p-3">
+//                   <span className="text-2xl leading-none shrink-0">{ach.icon || "🏅"}</span>
+//                   <div className="flex-1 min-w-0">
+//                     <p className="text-sm font-medium truncate">{ach.title || ach.name}</p>
+//                     {(a.unlockedAt || a.createdAt) && (
+//                       <p className="text-xs text-muted-foreground mt-0.5">
+//                         {new Date(a.unlockedAt || a.createdAt).toLocaleDateString(undefined, {
+//                           month: "short",
+//                           day: "numeric",
+//                           year: "numeric",
+//                         })}
+//                       </p>
+//                     )}
+//                   </div>
+//                   <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-400 shrink-0">
+//                     ✓ Earned
+//                   </Badge>
+//                 </div>
+//               );
+//             })}
+//           </div>
+//         )}
+//       </CardContent>
+//     </Card>
+//   );
+// }
 
 /*  main page  */
 
@@ -730,8 +730,8 @@ function StudentDashboardHome() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ActiveChallengesWidget />
-        <RecentAchievementsWidget />
+        {/* <ActiveChallengesWidget />
+        <RecentAchievementsWidget /> */}
       </div>
     </div>
   );
@@ -769,9 +769,9 @@ function AdminDashboardHome() {
     refetchInterval: 60_000,
   });
 
-  const topReadersQ = useQuery({
-    queryKey: ["dashboard", "top-readers"],
-    queryFn: () => api.get("/dashboard/top-readers"),
+  const topProgramsQ = useQuery({
+    queryKey: ["dashboard", "top-programs"],
+    queryFn: () => api.get("/dashboard/top-programs"),
     select: (r) => r.data,
     staleTime: 120_000,
   });
@@ -858,9 +858,9 @@ function AdminDashboardHome() {
           loading={statsLoading}
         />
         <StatCard
-          title="Pending Reports"
-          value={stats?.pendingDailyReports}
-          icon={ClipboardList}
+          title="Total Programmes"
+          value={stats?.totalPrograms}
+          icon={FileChartColumn}
           colorClass="text-cyan-500"
           loading={statsLoading}
         />
@@ -919,17 +919,17 @@ function AdminDashboardHome() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Star className="h-5 w-5 text-yellow-400" />
-              Top Readers
+              Top Programmes
             </CardTitle>
-            <CardDescription>Ranked by daily report submissions</CardDescription>
+            <CardDescription>Most enrolled programmes</CardDescription>
           </CardHeader>
           <CardContent>
-            <TopReadersList
-              readers={topReadersQ.data}
-              loading={topReadersQ.isLoading}
+            <TopProgramsList
+              programs={topProgramsQ.data}
+              loading={topProgramsQ.isLoading}
             />
-            {topReadersQ.isError && (
-              <p className="text-sm text-destructive">Failed to load top readers.</p>
+            {topProgramsQ.isError && (
+              <p className="text-sm text-destructive">Failed to load top programmes.</p>
             )}
           </CardContent>
         </Card>
@@ -956,8 +956,8 @@ function AdminDashboardHome() {
 
       {/* ── Active Challenges + Recent Achievements ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ActiveChallengesWidget />
-        <RecentAchievementsWidget />
+        {/* <ActiveChallengesWidget />
+        <RecentAchievementsWidget /> */}
       </div>
     </div>
   );
