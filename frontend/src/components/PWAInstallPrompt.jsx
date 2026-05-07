@@ -50,7 +50,7 @@ export default function PWAInstallPrompt() {
 
   return (
     <div style={styles.container}>
-      <span style={styles.text}>Install JJU Reading Club</span>
+      <span style={styles.text}>Install DPL App</span>
 
       <button onClick={installApp} style={styles.installBtn}>
         Install
