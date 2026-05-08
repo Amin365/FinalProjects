@@ -216,7 +216,11 @@ const EnrollmentsTable = () => {
                   const fullName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
 
                   return (
-                    <tr key={item._id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <tr
+                      key={item._id}
+                      className="cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => navigate(`/dashboard/enrollments/${item._id}`)}
+                    >
                       <td className="p-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-orange-100">
@@ -256,7 +260,10 @@ const EnrollmentsTable = () => {
                                 type="button"
                                 className="rounded p-2 hover:bg-emerald-50 disabled:opacity-60"
                                 title="Approve"
-                                onClick={() => approveMutation.mutate(item._id)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  approveMutation.mutate(item._id);
+                                }}
                                 disabled={approveMutation.isPending}
                               >
                                 <Check className="h-4 w-4 text-emerald-600" />
@@ -265,7 +272,8 @@ const EnrollmentsTable = () => {
                                 type="button"
                                 className="rounded p-2 hover:bg-red-50 disabled:opacity-60"
                                 title="Reject"
-                                onClick={() => {
+                                onClick={(event) => {
+                                  event.stopPropagation();
                                   const ok = window.confirm("Reject this enrollment request?");
                                   if (ok) rejectMutation.mutate(item._id);
                                 }}
@@ -278,14 +286,20 @@ const EnrollmentsTable = () => {
                           <button
                             type="button"
                             className="rounded p-2 hover:bg-slate-100"
-                            onClick={() => navigate(`/dashboard/enrollments/${item._id}`)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/dashboard/enrollments/${item._id}`);
+                            }}
                           >
                             <Eye className="h-4 w-4 text-slate-600" />
                           </button>
                           <button
                             type="button"
                             className="rounded p-2 hover:bg-slate-100"
-                            onClick={() => setDeleteTarget(item)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDeleteTarget(item);
+                            }}
                           >
                             <Trash2 className="h-4 w-4 text-red-600" />
                           </button>

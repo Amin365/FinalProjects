@@ -45,6 +45,7 @@ export default function ProfilePage() {
   });
 
   console.log('users',user)
+  const profileMemberId = typeof user?.member === "object" ? user.member?._id : user?.member;
 
   const [editMode, setEditMode] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -284,7 +285,8 @@ const handlePhotoChange = (e) => {
             <div className="flex items-center gap-3">
               {!editMode && (
                 <Button
-                  onClick={() => navigate(`/dashboard/id-card/${user?.member?._id}`)}
+                  onClick={() => navigate(`/dashboard/id-card/${profileMemberId}`)}
+                  disabled={!profileMemberId}
                   variant="outline"
                   className="rounded-xl"
                 >

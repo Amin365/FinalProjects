@@ -183,7 +183,7 @@ const MembersForm = () => {
     setStep(1);
     setCurrentProfilePicture(null); // Reset the preview state
     setTimeout(() => {
-      navigate("/");
+      navigate(-1);
     }, 1000);
   };
 

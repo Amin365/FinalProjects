@@ -124,7 +124,7 @@ const ResourceDetail = () => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="w-full max-w-7xl mx-auto px-6 py-10">
 
       {/* Back */}
       <button
@@ -179,14 +179,14 @@ const ResourceDetail = () => {
       </div>
 
       {/* Body */}
-      <div className="grid md:grid-cols-[1fr_320px] gap-6 mt-8">
+      <div className="grid w-full md:grid-cols-[minmax(0,1fr)_320px] gap-6 mt-8">
 
         {/* Description */}
-        <div className="border rounded-xl">
+        <div className="w-full min-w-0 border rounded-xl">
           <div className="p-5 border-b font-semibold text-sm">
             About this resource
           </div>
-          <div className="p-5 text-gray-600 text-sm leading-relaxed">
+          <div className="p-5 text-gray-600 text-sm leading-relaxed break-words">
             {resource.description || "No description provided."}
           </div>
         </div>

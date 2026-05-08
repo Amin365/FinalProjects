@@ -141,8 +141,8 @@ MemberSchema.virtual('full_name').get(function () {
 MemberSchema.pre('validate', function () {
   if (!this.code) {
     const t = Date.now().toString()
-    const rnd = Math.random().toString(36).slice(2, 4).toUpperCase()
-    this.code = `MBR${t.slice(-6)}${rnd}`
+    
+    this.code = `MBR${t.slice(-2)}`
   }
   if (typeof this.first_name === 'string') this.first_name = this.first_name.trim()
   if (typeof this.middle_name === 'string') this.middle_name = this.middle_name.trim()

@@ -25,9 +25,9 @@ export default function PVCIDCard() {
   const [activeTab, setActiveTab] = useState("front")
   const { memberId } = useParams()
   const { data: member, isLoading, isError } = useQuery({
-    queryKey: ["member", memberId],
+    queryKey: ["member-id-card", memberId],
     queryFn: async () => {
-      const res = await api.get(`/members/${memberId}`)
+      const res = await api.get(`/members/${memberId}/id-card`)
       return res.data.data
     },
     enabled: !!memberId,
@@ -82,7 +82,7 @@ export default function PVCIDCard() {
             employeeName={fullName}
             department={member.department}
             employeeId={member.code}
-            photoUrl={user.profile_picture || member.Profile_picture || ""}
+            photoUrl={user?.profile_picture || member.Profile_picture || ""}
             validFrom={member.join_date?.split("T")[0]}
             validUntil="2027-01-01"
             erpCode={member.student_id}
@@ -117,7 +117,7 @@ export default function PVCIDCard() {
                 employeeName={fullName}
                 department={member.department}
                 employeeId={member.code}
-                photoUrl={user.profile_picture|| member.Profile_picture || ""}
+                photoUrl={user?.profile_picture || member.Profile_picture || ""}
                 validFrom={member.join_date?.split("T")[0]}
                 validUntil="2027-01-01"
                 erpCode={member.student_id}

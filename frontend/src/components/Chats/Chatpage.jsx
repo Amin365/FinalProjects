@@ -757,7 +757,7 @@ export default function ChatPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
+              {/* <div className="flex items-center gap-1 shrink-0">
                 {[
                   { icon: Phone, label: "Call"  },
                   { icon: Video, label: "Video" },
@@ -770,7 +770,7 @@ export default function ChatPage() {
                     <Icon size={17} />
                   </button>
                 ))}
-              </div>
+              </div> */}
             </div>
 
             {/* Messages */}

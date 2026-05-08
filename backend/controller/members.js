@@ -394,6 +394,34 @@ export const getMemberById = async (req, res, next) => {
   }
 };
 
+export const getMemberIdCardById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid member id" });
+    }
+
+    const canManageMembers = Array.isArray(req.user?.permissions)
+      && req.user.permissions.includes("Manage Members");
+    const ownMemberId = req.user?.member ? String(req.user.member) : "";
+
+    if (!canManageMembers && ownMemberId !== String(id)) {
+      return res.status(403).json({ message: "You can only view your own ID card" });
+    }
+
+    const member = await Member.findById(id)
+      .select("_id first_name middle_name last_name code phone email region join_date Profile_picture department student_id study_year status role")
+      .populate("role", "role color plural system")
+      .lean()
+      .exec();
+
+    if (!member) return res.status(404).json({ message: "Member not found" });
+    return res.status(200).json({ data: member });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 /**
  * Soft-archive a member (mark isArchived = true)
  * POST /members/:id/archive

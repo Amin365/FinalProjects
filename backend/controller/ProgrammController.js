@@ -309,13 +309,6 @@ export const getProgramById = async (req, res) => {
 
     const program = await Program.findById(id).lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
-    const teacherScope = getTeacherFilterForRequest(req);
-    if (
-      teacherScope === "__deny__" ||
-      (teacherScope && String(program.teacherId) !== teacherScope && !(Array.isArray(program.assistants) && program.assistants.includes(teacherScope)))
-    ) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
 
     const [enrichedProgram] = await attachEnrollmentStats([program]);
 

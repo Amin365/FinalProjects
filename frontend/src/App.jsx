@@ -64,6 +64,7 @@ const ResourceDetails = lazy(() => import("./components/Resources/ResourceDetail
 const StudentResources = lazy(() => import("./components/Resources/StudentResource"));
 const ProgrammeTables = lazy(() => import("./components/Programme/ProgramTable"));
 const ProgrammeCard=lazy(()=>import("./components/Programme/ProgrammeLists"))
+const ProgrammeDetails = lazy(() => import("./components/Programme/ProgrameDetails"));
 const EnrollmentTable = lazy(() => import("./components/Enrollments/EnrollmentsTables"));
 const EnrollmentDetails = lazy(() => import("./components/Enrollments/EnrollmentDetails"));
 const Attendance = lazy(() => import("./components/Attendance/AttendancePage"));
@@ -90,6 +91,7 @@ function App() {
        
         <Route path="/" element={<Homepage />} />
            <Route path="/programmecards" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeCard /></Suspense>} />
+           <Route path="/programmecards/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeDetails /></Suspense>} />
  
            <Route path="/volunteer" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><TeamVolunteer /></Suspense>} />
  
@@ -158,8 +160,10 @@ function App() {
  {/*  Prograame */}
  
   <Route path="programme" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeTables /></Suspense>} />
+  <Route path="programme/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeDetails /></Suspense>} />
  
   <Route path="programmecards" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeCard /></Suspense>} />
+  <Route path="programmecards/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><ProgrammeDetails /></Suspense>} />
  
   <Route path="attendance" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><Attendance /></Suspense>} />
  

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import {
   Search, RefreshCw, Plus, Trash2, Edit2, X,
   BookOpen,
@@ -66,6 +67,7 @@ const inputCls =
 
 const ProgramTable = () => {
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const [search, setSearch]           = useState("");
   const [page]                        = useState(1);
@@ -92,7 +94,7 @@ const ProgramTable = () => {
 
   const teachers = teachersData?.data || [];
 
-  const programs = data?.data || [];
+  const programs = useMemo(() => data?.data || [], [data?.data]);
 
   console.log("prog",programs)
   /* mutations */
@@ -234,9 +236,10 @@ const ProgramTable = () => {
                 <tr
                   key={p._id}
                   className={cn(
-                    "border-t border-slate-100 dark:border-gray-800 transition-colors hover:bg-slate-50/60 dark:hover:bg-gray-800/30",
+                    "cursor-pointer border-t border-slate-100 dark:border-gray-800 transition-colors hover:bg-slate-50/60 dark:hover:bg-gray-800/30",
                     i % 2 === 0 ? "" : "bg-slate-50/30 dark:bg-gray-900/20"
                   )}
+                  onClick={() => navigate(`/dashboard/programme/${p._id}`)}
                 >
                   <td className="p-3 font-semibold text-slate-800 dark:text-white max-w-[180px] truncate">{p.title}</td>
                   <td className="p-3 text-slate-600 dark:text-slate-300 text-xs">{p.teacherName}</td>
@@ -253,13 +256,19 @@ const ProgramTable = () => {
                   <td className="p-3">
                     <div className="flex justify-end gap-1">
                       <button
-                        onClick={() => openEditModal(p)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditModal(p);
+                        }}
                         className="p-2 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setDeleteTarget(p)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteTarget(p);
+                        }}
                         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />

@@ -1,6 +1,6 @@
 import express from "express"
 import mongoose from "mongoose"
-import { createMember, getMembers,getMemberById,updateMember,bulkCreateMembers ,deleteMember,archiveMember,restoreMember,getMemberByCode,getMembersList,JoinClub, getJoinClubs, getJoinClubById, updateJoinClubStatus, getMemberOverview, createMemberNote, getMemberNotes, deleteMemberNote} from "../controller/members.js"
+import { createMember, getMembers,getMemberById,getMemberIdCardById,updateMember,bulkCreateMembers ,deleteMember,archiveMember,restoreMember,getMemberByCode,getMembersList,JoinClub, getJoinClubs, getJoinClubById, updateJoinClubStatus, getMemberOverview, createMemberNote, getMemberNotes, deleteMemberNote} from "../controller/members.js"
 import { sendMemberEmail } from "../controller/EmailController.js"
 import { protect } from "../middleware/auth.js"
 import { requirePermission } from "../middleware/role.js"
@@ -48,6 +48,7 @@ MemberRouter.get("/members/list", manageMembers, getMembersList);
 MemberRouter.get("/members/by-code/:code", getMemberByCode);
 
 // archive / restore and other item-specific actions
+MemberRouter.get("/members/:id/id-card", protect, getMemberIdCardById)
 MemberRouter.post('/members/:id/send-email', manageMembers, sendMemberEmail)
 MemberRouter.post("/members/:id/archive", manageMembers, archiveMember)
 MemberRouter.post("/members/:id/restore", manageMembers, restoreMember)
