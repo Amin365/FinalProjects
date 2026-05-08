@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { protect, optionalProtect } from "../middleware/auth.js";
-import { requirePermission } from "../middleware/role.js";
+import { requireRoleOrPermission } from "../middleware/role.js";
 import { apiLimiter } from "../utility/rateLimiter.js";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
@@ -18,28 +18,43 @@ import {
 
 const ResourceRouter = Router();
 
-const manageResources = [protect, requirePermission("Manage Resource")];
+const manageResources = [protect, requireRoleOrPermission(["admin", "super admin"], ["Manage Resource"])];
+const DOCUMENT_FORMATS = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "json"];
+const ARCHIVE_FORMATS = ["zip", "rar", "7z"];
+const IMAGE_FORMATS = ["jpg", "jpeg", "png", "gif", "webp"];
+const VIDEO_FORMATS = ["mp4", "mov", "avi", "mkv", "webm"];
 
 // Cloudinary storage for resource files
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     // Determine resource type for folder organization
-    const isFile = file.fieldname === "file";
-    const folder = isFile ? "Resources/files" : "Resources/images";
+    const isResourceFile = file.fieldname === "file";
+    const isVideo = file.mimetype?.startsWith("video/");
+    const isImage = file.mimetype?.startsWith("image/");
+    const folder = isResourceFile
+      ? isVideo
+        ? "Resources/videos"
+        : isImage
+          ? "Resources/images"
+          : "Resources/files"
+      : "Resources/images";
     
     return {
       folder,
-      allowed_formats: isFile 
-        ? ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "rar"]
-        : ["jpg", "jpeg", "png", "gif", "webp"],
-      resource_type: isFile ? "raw" : "image",
+      allowed_formats: isResourceFile
+        ? [...DOCUMENT_FORMATS, ...ARCHIVE_FORMATS, ...IMAGE_FORMATS, ...VIDEO_FORMATS]
+        : IMAGE_FORMATS,
+      resource_type: isVideo ? "video" : isImage ? "image" : "raw",
       public_id: `${Date.now()}-${file.originalname.split(".")[0]}`,
     };
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
 const uploadFields = upload.fields([
   { name: "coverImage", maxCount: 1 },
   { name: "file", maxCount: 1 },

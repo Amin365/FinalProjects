@@ -2,7 +2,7 @@ import express from "express"
 import mongoose from "mongoose"
 import { createMember, getMembers,getMemberById,getMemberIdCardById,updateMember,bulkCreateMembers ,deleteMember,archiveMember,restoreMember,getMemberByCode,getMembersList,JoinClub, getJoinClubs, getJoinClubById, updateJoinClubStatus, getMemberOverview, createMemberNote, getMemberNotes, deleteMemberNote} from "../controller/members.js"
 import { sendMemberEmail } from "../controller/EmailController.js"
-import { protect } from "../middleware/auth.js"
+import { optionalProtect, protect } from "../middleware/auth.js"
 import { requirePermission } from "../middleware/role.js"
 import { apiLimiter } from "../utility/rateLimiter.js"
 import multer from "multer";
@@ -69,7 +69,7 @@ MemberRouter.route("/members/:id")
   .put(manageMembers, upload.single("profile_picture"), updateMember)
   .delete(manageMembers, deleteMember)
 
-MemberRouter.post("/join-club",JoinClub)
+MemberRouter.post("/join-club", optionalProtect, JoinClub)
 
 MemberRouter.get("/join-club", manageTeachers, apiLimiter, getJoinClubs)
 MemberRouter.get("/join-club/:id", manageTeachers, apiLimiter, getJoinClubById)

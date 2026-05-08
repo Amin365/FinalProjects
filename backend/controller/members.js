@@ -694,6 +694,9 @@ export const JoinClub = async (req, res, next) => {
       });
     }
 
+    const canAutoApprove = Array.isArray(req.user?.permissions)
+      && req.user.permissions.includes("Manage Teacher");
+
     const clubRequest = await Clubreq.create({
       FullName,
       phone,
@@ -706,6 +709,12 @@ export const JoinClub = async (req, res, next) => {
       motivation,
       status: "Pending",
     });
+
+    if (canAutoApprove) {
+      req.params.id = clubRequest._id;
+      req.body = { status: "Approved" };
+      return updateJoinClubStatus(req, res, next);
+    }
 
     return res.status(201).json({
       message: "Join club request submitted successfully",
@@ -730,6 +739,7 @@ export const getJoinClubs = async (req, res, next) => {
     const [requests, total] = await Promise.all([
       Clubreq.find(filter)
         .populate("memberId", "first_name last_name code email")
+        .populate("userId", "first_name last_name username email status")
         .populate("reviewedBy", "first_name last_name username")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -756,6 +766,7 @@ export const getJoinClubById = async (req, res, next) => {
 
     const request = await Clubreq.findById(id)
       .populate("memberId", "first_name last_name code email")
+      .populate("userId", "first_name last_name username email status")
       .populate("reviewedBy", "first_name last_name username")
       .lean();
 
@@ -1000,6 +1011,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
 
     const updatedRequest = await Clubreq.findByIdAndUpdate(id, update, { new: true })
       .populate("memberId", "first_name last_name code email")
+      .populate("userId", "first_name last_name username email status")
       .populate("reviewedBy", "first_name last_name username")
       .lean();
 

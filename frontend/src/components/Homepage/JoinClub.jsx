@@ -282,7 +282,7 @@ const EMPTY = {
   status: "Pending",
 };
 
-const JoinClub = ({ open, onOpenChange, onSuccess }) => {
+const JoinClub = ({ open, onOpenChange, onSuccess, adminCreate = false }) => {
   const [step,        setStep]        = React.useState(1);
   const [form,        setForm]        = React.useState(EMPTY);
   const [success,     setSuccess]     = React.useState(false);
@@ -291,13 +291,17 @@ const JoinClub = ({ open, onOpenChange, onSuccess }) => {
 
   /* check localStorage for duplicate email */
   React.useEffect(() => {
+    if (adminCreate) {
+      setEmailExists(false);
+      return;
+    }
     if (form.email) {
       const emails = JSON.parse(localStorage.getItem("joinedClubEmails") || "[]");
       setEmailExists(emails.includes(form.email));
     } else {
       setEmailExists(false);
     }
-  }, [form.email]);
+  }, [adminCreate, form.email]);
 
   /* reset when dialog opens */
   React.useEffect(() => {
@@ -332,8 +336,10 @@ const JoinClub = ({ open, onOpenChange, onSuccess }) => {
       return res.data;
     },
     onSuccess: (_, vars) => {
-      const emails = JSON.parse(localStorage.getItem("joinedClubEmails") || "[]");
-      localStorage.setItem("joinedClubEmails", JSON.stringify([...emails, vars.email]));
+      if (!adminCreate) {
+        const emails = JSON.parse(localStorage.getItem("joinedClubEmails") || "[]");
+        localStorage.setItem("joinedClubEmails", JSON.stringify([...emails, vars.email]));
+      }
       onSuccess?.();
       setSuccess(true);
       setTimeout(() => { setSuccess(false); setForm(EMPTY); onOpenChange(false); }, 4000);
@@ -371,8 +377,12 @@ const JoinClub = ({ open, onOpenChange, onSuccess }) => {
                     <Users size={17} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Volunteer application</p>
-                    <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white leading-tight">Join degahbur public Library</h2>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                      {adminCreate ? "Create teacher" : "Volunteer application"}
+                    </p>
+                    <h2 className="text-[16px] font-extrabold text-slate-900 dark:text-white leading-tight">
+                      {adminCreate ? "New teacher account" : "Join degahbur public Library"}
+                    </h2>
                   </div>
                 </div>
                 <button
@@ -445,7 +455,7 @@ const JoinClub = ({ open, onOpenChange, onSuccess }) => {
               {step === 1 && (
                 <div className="mb-4 px-4 py-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 text-[12.5px] text-orange-700 dark:text-orange-300 flex items-center gap-2">
                   <Sparkles size={13} className="shrink-0 text-orange-500" />
-                  Our team will contact you within <strong className="ml-1">24 hours</strong> of submitting.
+                  {adminCreate ? "This teacher will be approved and created immediately." : <>Our team will contact you within <strong className="ml-1">24 hours</strong> of submitting.</>}
                 </div>
               )}
 
@@ -481,7 +491,7 @@ const JoinClub = ({ open, onOpenChange, onSuccess }) => {
                 ) : step < 3 ? (
                   <>Next <ChevronRight size={15} /></>
                 ) : (
-                  <>Submit application <Check size={14} /></>
+                  <>{adminCreate ? "Create teacher" : "Submit application"} <Check size={14} /></>
                 )}
               </button>
             </div>

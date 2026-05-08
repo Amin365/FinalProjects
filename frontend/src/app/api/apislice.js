@@ -17,6 +17,10 @@ const api = axios.create({
 
 //  Attach token on requests
 api.interceptors.request.use((config) => {
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
+
   if (config.skipAuth) {
     delete config.skipAuth;
     return config;

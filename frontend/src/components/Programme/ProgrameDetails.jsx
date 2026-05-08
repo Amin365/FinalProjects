@@ -137,7 +137,7 @@ export default function ProgrameDetails() {
   const teacherName = program.teacher?.fullName || program.teacherName || program.teacherId;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+    <div className=" max-w-9xl px-4 mx-12 py-6 md:px-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
           <button

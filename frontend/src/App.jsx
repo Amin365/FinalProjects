@@ -41,6 +41,7 @@ const Homepage=lazy(()=>import("./components/Homepage/Herroes"))
 const File=lazy(()=>import("./components/Homepage/File"))
 
 const JoinClub=lazy(()=>import("./components/Homepage/JoinClubsTable"))
+const JoinClubDetails=lazy(()=>import("./components/Homepage/JoinClubdetails"))
 const Profile = lazy(() => import("./components/Users/UserProfile"));
 const IDcard = lazy(() => import("./components/IDcard/PVCIDCard"));
 const MembersFormPublic = lazy(() => import("./components/Members/MemberForm"));
@@ -145,6 +146,7 @@ function App() {
   <Route path="profile" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><Profile /></Suspense>} />
   <Route path="id-card/:memberId" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><IDcard /></Suspense>} />
   <Route path="join-clubs" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><JoinClub /></Suspense>} />
+  <Route path="join-clubs/:id" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><JoinClubDetails /></Suspense>} />
  
   <Route path="notifications" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><NotificationCenter /></Suspense>} />
   <Route path="notification-settings" element={<Suspense fallback={<Loader size="lg" colorClass="text-orange-600" />}><NotificationPreferences /></Suspense>} />

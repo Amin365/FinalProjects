@@ -107,9 +107,7 @@ const ResourceForm = () => {
 
   const createMutation = useMutation({
     mutationFn: async (formData) => {
-      const resp = await api.post("/resources", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const resp = await api.post("/resources", formData);
       return resp.data?.data ?? resp.data;
     },
     onSuccess: () => {
@@ -123,9 +121,7 @@ const ResourceForm = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ resourceId, formData }) => {
-      const resp = await api.put(`/resources/${resourceId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const resp = await api.put(`/resources/${resourceId}`, formData);
       return resp.data?.data ?? resp.data;
     },
     onSuccess: () => {
