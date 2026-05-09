@@ -135,6 +135,7 @@ export default function ChartsDashboard() {
         <div className="flex gap-2">
           <Button
             size="sm"
+            className="dark:bg-orange-400"
             variant={rangeDays === 7 ? "default" : "outline"}
             onClick={() => setRangeDays(7)}
           >
@@ -142,6 +143,8 @@ export default function ChartsDashboard() {
           </Button>
           <Button
             size="sm"
+             className="dark:bg-orange-400"
+
             variant={rangeDays === 30 ? "default" : "outline"}
             onClick={() => setRangeDays(30)}
           >

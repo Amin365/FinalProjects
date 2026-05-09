@@ -501,7 +501,7 @@ function RoleHeader({ eyebrow, title, description, actionLabel, actionTo }) {
       {actionLabel && actionTo && (
         <Link
           to={actionTo}
-          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+          className="inline-flex dark:bg-orange-400 h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
         >
           {actionLabel}
         </Link>

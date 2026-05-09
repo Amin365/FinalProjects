@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import api from "@/app/api/apislice";
 import { useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import HeroHeader from '../Homepage/HeroSections';
 import Footer from "../Homepage/Footer";
 
@@ -732,7 +732,7 @@ const CapacityBar = ({ enrolled, capacity }) => {
   );
 };
 
-const ProgramCard = ({ program, onEnroll, onDetails, alreadyEnrolled = false, hideEnrollAction = false }) => {
+const ProgramCard = ({ program, onEnroll, alreadyEnrolled = false, hideEnrollAction = false }) => {
   const [flipped, setFlipped] = useState(false);
   const Icon = program.icon;
   const isFull = program.status === "full";
@@ -745,7 +745,6 @@ const ProgramCard = ({ program, onEnroll, onDetails, alreadyEnrolled = false, hi
       style={{ perspective: "1300px" }}
       onMouseEnter={() => !isFull && setFlipped(true)}
       onMouseLeave={() => setFlipped(false)}
-      onClick={() => onDetails(program)}
     >
       <div
         className="w-full h-full relative transition-all duration-500 ease-in-out"
@@ -875,7 +874,6 @@ const Stat = ({ icon: Icon, value, label }) => (
  */
 const ProgramsPage = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
   const { user: authUser } = useSelector((state) => state.auth);
   const [active, setActive] = useState("all");
@@ -884,7 +882,6 @@ const ProgramsPage = () => {
   const [enrollTarget, setEnrollTarget] = useState(null);
 
   const isDashboardProgrammeCards = location?.pathname?.startsWith("/dashboard/programmecards");
-  const detailsBasePath = isDashboardProgrammeCards ? "/dashboard/programmecards" : "/programmecards";
 
   const roleName = useMemo(() => {
     const roleSource = authUser?.role;
@@ -1021,7 +1018,6 @@ const ProgramsPage = () => {
                 <ProgramCard
                   program={p}
                   onEnroll={setEnrollTarget}
-                  onDetails={(program) => navigate(`${detailsBasePath}/${program.id}`)}
                   alreadyEnrolled={enrolledProgramIds.has(String(p.id))}
                   hideEnrollAction={isInstructorDashboard}
                 />

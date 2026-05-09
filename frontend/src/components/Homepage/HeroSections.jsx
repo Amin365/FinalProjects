@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { name: 'Dashboard',  href: '/dashboard' },
   { name: 'Programs',   href: '/programmecards' },
   { name: 'Volunteers',      href: '/volunteer' },
-  { name: 'Leaderboard',href: '/leaderboard' },
+  { name: 'About Us',href: '/about' },
 ]
 
 const HeroHeader = () => {
