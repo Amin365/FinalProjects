@@ -177,6 +177,7 @@ const ResourceForm = () => {
   const watchedAccessLevel = watch("accessLevel");
   const watchedFileUrl = watch("fileUrl");
   const selectedFile = watchedFile?.[0] || null;
+  const fileRegistration = register("file");
 
   const onDropFile = (e) => {
     e.preventDefault();
@@ -184,9 +185,18 @@ const ResourceForm = () => {
     const dropped = e.dataTransfer.files?.[0];
     if (!dropped) return;
     setValue("file", e.dataTransfer.files, { shouldValidate: true });
+    setValue("fileUrl", "", { shouldValidate: true });
   };
 
-  const removeSelectedFile = () => setValue("file", null, { shouldValidate: true });
+  const onFileInputChange = (e) => {
+    fileRegistration.onChange(e);
+    setValue("file", e.target.files, { shouldValidate: true });
+    if (e.target.files?.[0]) setValue("fileUrl", "", { shouldValidate: true });
+  };
+
+  const removeSelectedFile = () => {
+    setValue("file", null, { shouldValidate: true });
+  };
 
   const onSubmitHandler = async (data) => {
     const formData = new FormData();
@@ -335,14 +345,6 @@ const ResourceForm = () => {
                       : "border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/30 hover:border-orange-300 hover:bg-orange-50/30"
                     }`}
                 >
-                  <input
-                    id="file-input"
-                    type="file"
-                    className="hidden"
-                    {...register("file")}
-                    onChange={(e) => setValue("file", e.target.files, { shouldValidate: true })}
-                  />
-
                   {selectedFile ? (
                     <div className="flex items-center justify-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
@@ -354,7 +356,10 @@ const ResourceForm = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={removeSelectedFile}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSelectedFile();
+                        }}
                         className="ml-2 w-7 h-7 rounded-full bg-slate-100 dark:bg-gray-700 hover:bg-red-100 hover:text-red-500 flex items-center justify-center text-slate-400 transition-colors"
                       >
                         <X size={13} />
@@ -366,9 +371,17 @@ const ResourceForm = () => {
                       <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Drop your file here</p>
                       <p className="text-xs text-slate-400 mt-0.5 mb-3">PDF, DOCX, PPTX, Video, and more</p>
                       <label
-                        htmlFor="file-input"
-                        className="inline-block px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                        className="relative inline-flex overflow-hidden px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                       >
+                        <input
+                          type="file"
+                          name={fileRegistration.name}
+                          onBlur={fileRegistration.onBlur}
+                          ref={fileRegistration.ref}
+                          onChange={onFileInputChange}
+                          disabled={isProcessing}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        />
                         Browse File
                       </label>
                     </>

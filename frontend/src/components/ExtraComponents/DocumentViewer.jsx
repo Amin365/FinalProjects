@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Worker,
   Viewer,
@@ -33,13 +33,37 @@ export default function DocumentViewer({
   const [activeIndex, setActiveIndex] = useState(index);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => setActiveIndex(index), [index]);
-
   const doc = docs?.[activeIndex];
 
   const fileType = useMemo(() => {
-    const t = doc?.fileType || doc?.uri?.split(".").pop() || "";
-    return String(t).toLowerCase();
+    const rawType = String(doc?.fileType || "").toLowerCase();
+    const normalizedTypes = {
+      "application/pdf": "pdf",
+      "application/msword": "doc",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+      "application/vnd.ms-excel": "xls",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+      "application/vnd.ms-powerpoint": "ppt",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+      "video/mp4": "mp4",
+      "video/webm": "webm",
+      "video/ogg": "ogg",
+      "video/quicktime": "mov",
+    };
+
+    if (normalizedTypes[rawType]) return normalizedTypes[rawType];
+    if (rawType.includes("/")) return rawType.split("/").pop();
+    if (rawType) return rawType;
+
+    try {
+      const pathName = new URL(doc?.uri || "", window.location.href).pathname;
+      const ext = decodeURIComponent(pathName).split(".").pop();
+      return ext && ext !== pathName ? ext.toLowerCase() : "";
+    } catch {
+      const clean = String(doc?.uri || "").split("?")[0].split("#")[0];
+      const ext = clean.split(".").pop();
+      return ext && ext !== clean ? ext.toLowerCase() : "";
+    }
   }, [doc]);
 
   const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(fileType);
@@ -65,9 +89,16 @@ export default function DocumentViewer({
     ),
   });
 
-  const handlePrev = () => activeIndex > 0 && setActiveIndex((i) => i - 1);
-  const handleNext = () =>
-    activeIndex < docs.length - 1 && setActiveIndex((i) => i + 1);
+  const handlePrev = () => {
+    if (activeIndex <= 0) return;
+    setLoading(true);
+    setActiveIndex((i) => i - 1);
+  };
+  const handleNext = () => {
+    if (activeIndex >= docs.length - 1) return;
+    setLoading(true);
+    setActiveIndex((i) => i + 1);
+  };
 
   if (!doc?.uri) {
     return (
@@ -80,8 +111,8 @@ export default function DocumentViewer({
   return (
     <div className="space-y-3">
       <div className="relative">
-        {/* ✅ Loading overlay */}
-        {loading && (
+        {/* Loading overlay for non-PDF previews. PDF has its own loader/error UI. */}
+        {loading && !isPdf && (
           <div className="absolute inset-0 z-10 bg-white/70">
             <Spinner />
           </div>
@@ -101,7 +132,7 @@ export default function DocumentViewer({
         {isPdf && (
           <Worker workerUrl={pdfWorker}>
             <div
-              className="rounded-md border"
+              className="rounded-md border bg-white"
               style={{
                 width: minPdfWidth,
                 height: "70vh",
@@ -114,6 +145,22 @@ export default function DocumentViewer({
                 defaultScale={SpecialZoomLevel.PageWidth}
                 onDocumentLoad={() => setLoading(false)}
                 renderLoader={() => <Spinner />}
+                renderError={(loadError) => (
+                  <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-3 rounded-md bg-white p-6 text-center">
+                    <p className="text-sm font-semibold text-slate-700">Unable to preview this PDF here.</p>
+                    <p className="max-w-md text-xs text-slate-500">
+                      {loadError?.message || "The file server may be blocking inline PDF reading."}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(doc.uri, "_blank", "noopener,noreferrer")}
+                    >
+                      Open PDF
+                    </Button>
+                  </div>
+                )}
               />
             </div>
           </Worker>

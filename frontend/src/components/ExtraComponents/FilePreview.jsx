@@ -11,7 +11,6 @@ import {
   Image as ImageIcon,
   Play,
   Music,
-  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -321,15 +319,10 @@ export default function FilePreview({ file, selectedIndex = 0, allFiles = [], ch
         {/* DIALOG (replaces OverlayPanel) */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-5xl">
-            <DialogHeader className="flex flex-row items-center justify-between gap-3">
+            <DialogHeader>
               <DialogTitle className="truncate">
                 {activeOverlay === "document" ? "Document preview" : file?.filename}
               </DialogTitle>
-              <DialogClose asChild>
-                <Button variant="ghost" size="icon" aria-label="Close">
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
             </DialogHeader>
 
             {activeOverlay === "video" ? (

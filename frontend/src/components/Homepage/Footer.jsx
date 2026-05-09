@@ -33,7 +33,7 @@ const footerLinks = [
   {
     label: "Resources",
     links: [
-      { title: "Blog", href: "/#blog" }
+      { title: "Blog", href: "/programmecards" }
       // { title: "Help Center", href: "/help" },
       // { title: "Changelog", href: "/changelog" },
       // { title: "Brand", href: "/brand" },

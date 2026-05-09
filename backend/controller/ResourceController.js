@@ -1,10 +1,17 @@
 import mongoose from "mongoose";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import Resource from "../models/Resource.js";
 import User from "../models/user.js";
+import cloudinary from "../utility/cloudinary.js";
 import "../models/Program.js";
 
 const ALLOWED_TYPES = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "video", "link", "other"];
 const ALLOWED_ACCESS = ["public", "private", "program-only"];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOCAL_RESOURCE_UPLOAD_DIR = path.join(__dirname, "../../uploads/resources");
 
 const isAdmin = async (userId) => {
   const user = await User.findById(userId).populate("role", "role plural").lean();
@@ -30,6 +37,75 @@ const canManageProgramResource = async (userId, programId) => {
 };
 
 const getUploadedFile = (file) => file?.path || file?.secure_url || file?.url || "";
+
+const getExtension = (filename = "") => {
+  const ext = String(filename).split(".").pop();
+  return ext && ext !== filename ? ext.toLowerCase() : "";
+};
+
+const getBaseName = (filename = "file") => {
+  const base = String(filename).replace(/\.[^/.]+$/, "");
+  return base.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "file";
+};
+
+const isPdfFile = (file) => {
+  const mimetype = String(file?.mimetype || "").toLowerCase();
+  return mimetype === "application/pdf" || getExtension(file?.originalname) === "pdf";
+};
+
+const saveResourceFileLocally = async (file) => {
+  if (!file?.buffer) return "";
+
+  await fs.mkdir(LOCAL_RESOURCE_UPLOAD_DIR, { recursive: true });
+  const ext = getExtension(file.originalname) || "bin";
+  const filename = `${Date.now()}-${getBaseName(file.originalname)}.${ext}`;
+  const fullPath = path.join(LOCAL_RESOURCE_UPLOAD_DIR, filename);
+  await fs.writeFile(fullPath, file.buffer);
+
+  return `/uploads/resources/${filename}`;
+};
+
+const getCloudinaryTarget = (file, fieldname = "file") => {
+  const mimetype = String(file?.mimetype || "").toLowerCase();
+  const ext = getExtension(file?.originalname);
+  const isVideo = mimetype.startsWith("video/");
+  const isImage = mimetype.startsWith("image/");
+  const isPdf = ext === "pdf" || mimetype === "application/pdf";
+  const folder = fieldname === "coverImage"
+    ? "Resources/images"
+    : isVideo
+      ? "Resources/videos"
+      : isImage
+        ? "Resources/images"
+        : "Resources/files";
+
+  const resourceType = isVideo ? "video" : isImage || isPdf ? "image" : "raw";
+  const basePublicId = `${Date.now()}-${getBaseName(file?.originalname)}`;
+
+  return {
+    folder,
+    resource_type: resourceType,
+    public_id: resourceType === "raw" && ext ? `${basePublicId}.${ext}` : basePublicId,
+  };
+};
+
+const uploadBufferToCloudinary = (file, fieldname = "file") => {
+  if (!file?.buffer) return Promise.resolve("");
+
+  const options = {
+    ...getCloudinaryTarget(file, fieldname),
+    timeout: 120_000,
+  };
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) return reject(error);
+      resolve(result?.secure_url || result?.url || "");
+    });
+
+    stream.end(file.buffer);
+  });
+};
 
 /**
  * POST /resources (admin only)
@@ -64,7 +140,12 @@ export const createResource = async (req, res) => {
       return res.status(403).json({ message: "You can only create resources for programs you teach" });
     }
 
-    const uploadedFile = getUploadedFile(req.files?.file?.[0]);
+    const incomingFile = req.files?.file?.[0];
+    const uploadedFile =
+      getUploadedFile(incomingFile) ||
+      (isPdfFile(incomingFile)
+        ? await saveResourceFileLocally(incomingFile)
+        : await uploadBufferToCloudinary(incomingFile, "file"));
     const fileUrl = uploadedFile || String(fileUrlFromBody || "").trim();
     if (!fileUrl) return res.status(400).json({ message: "fileUrl (or uploaded file) is required" });
 
@@ -167,6 +248,60 @@ export const getResourceById = async (req, res) => {
   }
 };
 
+export const getResourceFileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid resource id" });
+
+    const resource = await Resource.findById(id).select("title type fileUrl").lean();
+    if (!resource?.fileUrl) return res.status(404).json({ message: "Resource file not found" });
+
+    const fileUrl = String(resource.fileUrl).trim();
+    const ext = getExtension(fileUrl.split("?")[0]);
+    const isPdf = String(resource.type || "").toLowerCase() === "pdf" || ext === "pdf";
+    const filename = `${getBaseName(resource.title || "resource")}${ext ? `.${ext}` : ""}`;
+
+    if (fileUrl.startsWith("/uploads/")) {
+      const relativePath = fileUrl.replace(/^\/uploads\//, "");
+      const fullPath = path.resolve(__dirname, "../../uploads", relativePath);
+      const uploadsRoot = path.resolve(__dirname, "../../uploads");
+      if (fullPath !== uploadsRoot && !fullPath.startsWith(`${uploadsRoot}${path.sep}`)) {
+        return res.status(400).json({ message: "Invalid resource file path" });
+      }
+
+      res.setHeader("Content-Type", isPdf ? "application/pdf" : "application/octet-stream");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      return res.sendFile(fullPath);
+    }
+
+    const absoluteUrl = fileUrl.startsWith("/uploads/")
+      ? `${req.protocol}://${req.get("host")}${fileUrl}`
+      : fileUrl;
+
+    const upstream = await fetch(absoluteUrl);
+    if (!upstream.ok) {
+      if (upstream.status === 401 && isPdf) {
+        return res.status(409).json({
+          message: "This PDF is blocked by the remote file host. Re-upload the PDF so it can be stored locally for preview.",
+        });
+      }
+      return res.status(upstream.status).json({ message: "Unable to load resource file" });
+    }
+
+    const contentType = isPdf ? "application/pdf" : upstream.headers.get("content-type") || "application/octet-stream";
+    const arrayBuffer = await upstream.arrayBuffer();
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error("getResourceFileById:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 /**
  * PUT /resources/:id (admin only)
  */
@@ -201,7 +336,12 @@ export const updateResource = async (req, res) => {
       resource.type = type;
     }
 
-    const uploadedFile = getUploadedFile(req.files?.file?.[0]);
+    const incomingFile = req.files?.file?.[0];
+    const uploadedFile =
+      getUploadedFile(incomingFile) ||
+      (isPdfFile(incomingFile)
+        ? await saveResourceFileLocally(incomingFile)
+        : await uploadBufferToCloudinary(incomingFile, "file"));
     if (uploadedFile) {
       resource.fileUrl = uploadedFile;
     } else if (fileUrl !== undefined) {

@@ -10,13 +10,172 @@ import {
   Shield,
   Layers,
   HardDrive,
+  X,
 } from "lucide-react";
 import api from "@/app/api/apislice";
-import FilePreview from "@/components/ExtraComponents/FilePreview";
+import DocumentViewer from "@/components/ExtraComponents/DocumentViewer";
+
+const getUrlExtension = (url = "") => {
+  const clean = String(url).split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop();
+  return ext && ext !== clean ? ext.toLowerCase() : "";
+};
+
+const normalizeFileUrl = (url = "") => {
+  const value = String(url || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:")) return value;
+  if (value.startsWith("/uploads/") && typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:5000${value}`;
+  }
+  return value;
+};
+
+const getApiResourceFileUrl = (id) => {
+  if (!id) return "";
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return `${window.location.protocol}//${window.location.hostname}:5000/api/resources/${id}/file`;
+  }
+  return `/api/resources/${id}/file`;
+};
+
+const getResourceMimeType = (type = "", url = "") => {
+  const rType = String(type || "").toLowerCase();
+  const ext = getUrlExtension(url);
+  const normalized = ext || rType;
+  const mimeTypes = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+  };
+
+  if (rType === "video" && !mimeTypes[normalized]) return "video/mp4";
+  if (rType === "link") return "text/uri-list";
+  return mimeTypes[normalized] || "application/octet-stream";
+};
+
+const getPreviewKind = (type = "", url = "") => {
+  const rType = String(type || "").toLowerCase();
+  const ext = getUrlExtension(url);
+  const normalized = ext || rType;
+
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(normalized)) return "image";
+  if (["mp4", "mov", "webm", "avi", "mkv"].includes(normalized) || rType === "video") return "video";
+  if (normalized === "pdf" || rType === "pdf") return "pdf";
+  if (["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(normalized) || ["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(rType)) {
+    return "office";
+  }
+  if (rType === "link") return "link";
+  return "file";
+};
+
+const ResourcePreviewOverlay = ({ open, onClose, resource, previewFile, previewKind }) => {
+  if (!open || !previewFile?.filepath) return null;
+
+  const readerUrl = previewKind === "pdf" ? getApiResourceFileUrl(resource?._id) || previewFile.filepath : previewFile.filepath;
+  const openInNewTab = () => window.open(readerUrl, "_blank", "noopener,noreferrer");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-gray-900">{previewFile.filename || "Resource preview"}</p>
+            <p className="text-xs uppercase tracking-wide text-gray-400">{previewKind}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openInNewTab}
+              className="rounded-md border px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              aria-label="Close preview"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-[65vh] overflow-auto bg-gray-50 p-4">
+          {previewKind === "image" ? (
+            <div className="flex h-[72vh] w-full items-center justify-center overflow-hidden rounded-md bg-black">
+              <img
+                src={previewFile.filepath}
+                alt={resource?.title || "resource preview"}
+                className="max-h-full w-auto max-w-full object-contain"
+              />
+            </div>
+          ) : null}
+
+          {previewKind === "video" ? (
+            <video
+              key={previewFile.filepath}
+              src={previewFile.filepath}
+              controls
+              autoPlay
+              playsInline
+              className="h-[72vh] w-full rounded-md bg-black object-contain"
+            />
+          ) : null}
+
+          {previewKind === "pdf" ? (
+            <DocumentViewer
+              docs={[
+                {
+                  uri: readerUrl,
+                  fileName: previewFile.filename,
+                  fileType: previewFile.mimetype || "application/pdf",
+                },
+              ]}
+              index={0}
+              preview={false}
+              minPdfWidth="100%"
+            />
+          ) : null}
+
+          {previewKind === "office" ? (
+            <iframe
+              title={resource?.title || "Office preview"}
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewFile.filepath)}`}
+              className="h-[72vh] w-full rounded-md border bg-white"
+            />
+          ) : null}
+
+          {previewKind === "file" ? (
+            <div className="rounded-md border bg-white p-6 text-sm text-gray-600">
+              This file type cannot be previewed in the browser. Use Open or Download to view it.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ResourceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [previewOpen, setPreviewOpen] = React.useState(false);
 
   const { data: resource, isLoading, error } = useQuery({
     queryKey: ["resource-detail", id],
@@ -46,38 +205,38 @@ const ResourceDetail = () => {
   };
 
   const previewFile = React.useMemo(() => {
-    const url = resource?.fileUrl;
+    const url = normalizeFileUrl(resource?.fileUrl);
     if (!url) return null;
-
-    const rType = String(resource?.type || "").toLowerCase();
-    const mimetype =
-      rType === "pdf"
-        ? "application/pdf"
-        : rType === "doc"
-          ? "application/msword"
-          : rType === "docx"
-            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            : rType === "xls"
-              ? "application/vnd.ms-excel"
-              : rType === "xlsx"
-                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                : rType === "ppt"
-                  ? "application/vnd.ms-powerpoint"
-                  : rType === "pptx"
-                    ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    : rType === "video"
-                      ? "video/mp4"
-                      : rType === "link"
-                        ? "text/uri-list"
-                        : "application/octet-stream";
 
     const fallbackName = String(url).split("/").pop() || "resource";
     return {
       filepath: url,
       filename: resource?.title || fallbackName,
-      mimetype,
+      mimetype: getResourceMimeType(resource?.type, url),
     };
   }, [resource]);
+  const previewKind = React.useMemo(
+    () => getPreviewKind(resource?.type, previewFile?.filepath),
+    [previewFile?.filepath, resource?.type]
+  );
+
+  const openPreview = () => {
+    if (!previewFile?.filepath) return;
+    if (previewKind === "link") {
+      window.open(previewFile.filepath, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setPreviewOpen(true);
+  };
+
+  React.useEffect(() => {
+    if (!previewOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setPreviewOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewOpen]);
 
   if (isLoading)
     return (
@@ -147,19 +306,18 @@ const ResourceDetail = () => {
 
         <div className="flex gap-2">
           {previewFile ? (
-            <FilePreview file={previewFile} selectedIndex={0} allFiles={[previewFile]}>
-              <button
-                type="button"
-                className="flex items-center gap-2 border px-4 py-2 rounded-md text-sm hover:bg-gray-100"
-              >
-                <Eye size={14} /> Preview
-              </button>
-            </FilePreview>
+            <button
+              type="button"
+              onClick={openPreview}
+              className="flex items-center gap-2 border px-4 py-2 rounded-md text-sm hover:bg-gray-100"
+            >
+              <Eye size={14} /> Preview
+            </button>
           ) : null}
 
           <button
             type="button"
-            onClick={() => window.open(resource.fileUrl, "_blank", "noopener,noreferrer")}
+            onClick={() => window.open(previewFile?.filepath || resource.fileUrl, "_blank", "noopener,noreferrer")}
             className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600"
           >
             <Download size={14} /> Download
@@ -200,7 +358,11 @@ const ResourceDetail = () => {
             <p className="text-sm text-gray-500 mb-4">
               Download and start using it immediately.
             </p>
-            <button className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.open(previewFile?.filepath || resource.fileUrl, "_blank", "noopener,noreferrer")}
+              className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600 flex items-center justify-center gap-2"
+            >
               <Download size={14} /> Download File
             </button>
           </div>
@@ -234,7 +396,7 @@ const ResourceDetail = () => {
 
             <div className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-100 flex items-center justify-center">
-                {resource.uploadedBy.profile_picture ? (
+                {resource.uploadedBy?.profile_picture ? (
                   <img
                     src={resource.uploadedBy.profile_picture}
                     alt="profile"
@@ -262,6 +424,14 @@ const ResourceDetail = () => {
 
         </div>
       </div>
+
+      <ResourcePreviewOverlay
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        resource={resource}
+        previewFile={previewFile}
+        previewKind={previewKind}
+      />
     </div>
   );
 };

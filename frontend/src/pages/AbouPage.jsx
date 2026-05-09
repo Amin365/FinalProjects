@@ -109,7 +109,7 @@ export default function AboutPage() {
 
           {/* Giant headline */}
           <div className="mb-10">
-            <h4 className="text-[clamp(42px,7vw,96px)] font-black text-slate-900 dark:text-white leading-[0.95] tracking-[-0.03em]">
+            <h4 className="text-[clamp(30px,7vw,76px)] font-black text-slate-900 dark:text-white leading-[0.95] tracking-[-0.03em]">
               Where{" "}
               <em className="not-italic text-orange-500">knowledge</em>
               <br />
@@ -531,11 +531,11 @@ export default function AboutPage() {
             <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-10 items-center">
               <div>
                 <Tag>Join us</Tag>
-                <h4 className="text-[36px] md:text-[56px] font-black text-slate-900 dark:text-white leading-tight tracking-tight mb-5">
+                <h6 className="text-[36px] md:text-[40px] font-black text-slate-900 dark:text-white leading-tight tracking-tight mb-5">
                   Your library.<br />
                   Your <span className="text-orange-500">community</span>.<br />
                   Your future.
-                </h4>
+                </h6>
                 <p className="text-[16px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
                   Join thousands of Degahbur residents who are learning, growing, and connecting every day. Membership is — and always will be — completely free.
                 </p>

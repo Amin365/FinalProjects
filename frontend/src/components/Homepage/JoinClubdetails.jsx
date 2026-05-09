@@ -92,7 +92,7 @@ export default function JoinClubDetails() {
   };
 
   return (
-    <div className=" max-w-8xl mx-12 px-4 py-6 md:px-6">
+    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
           <button
@@ -133,8 +133,8 @@ export default function JoinClubDetails() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="w-full min-w-0 space-y-6 lg:col-span-2">
           <Card className="rounded-2xl">
             <CardContent className="p-6">
               <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
@@ -180,7 +180,7 @@ export default function JoinClubDetails() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="w-full min-w-0 space-y-6">
           <Card className="rounded-2xl">
             <CardContent className="space-y-5 p-6">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Review Status</h2>

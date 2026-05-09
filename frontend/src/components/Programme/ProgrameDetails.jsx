@@ -137,7 +137,7 @@ export default function ProgrameDetails() {
   const teacherName = program.teacher?.fullName || program.teacherName || program.teacherId;
 
   return (
-    <div className=" max-w-9xl px-4 mx-12 py-6 md:px-6">
+    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
           <button
@@ -162,15 +162,15 @@ export default function ProgrameDetails() {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Users} label="Confirmed Students" value={confirmedCount} sub={`${program.availableSeats ?? Math.max(capacity - confirmedCount, 0)} seats available`} color="text-emerald-500" />
         <StatCard icon={ClipboardList} label="Total Enrollment" value={program.enrollmentCount ?? confirmedCount + waitlistedCount} sub={`${pendingCount} pending, ${waitlistedCount} waitlisted`} color="text-orange-500" />
         <StatCard icon={Calendar} label="Attendance Sessions" value={attendance.sessions} sub={attendanceQuery.isError ? "No attendance access" : `${formatPercent(attendance.attendanceRate)} attendance rate`} color="text-blue-500" />
         <StatCard icon={TrendingUp} label="Capacity Filled" value={formatPercent(filledPercent)} sub={`${confirmedCount} of ${capacity || "N/A"} seats`} color="text-purple-500" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="w-full min-w-0 space-y-6 lg:col-span-2">
           <Card className="p-6">
             <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
               <BookOpen size={20} className="text-orange-500" /> Program Information
@@ -227,7 +227,7 @@ export default function ProgrameDetails() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="w-full min-w-0 space-y-6">
           <Card className="p-6">
             <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
               <GraduationCap size={20} className="text-orange-500" /> Assigned Teacher
@@ -255,7 +255,7 @@ export default function ProgrameDetails() {
             )}
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-6 ">
             <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
               <UserCheck size={20} className="text-orange-500" /> Attendance Summary
             </h2>
