@@ -51,7 +51,11 @@ export function AppSidebar({ compact = false, ...props }) {
     if (isAdminRoleName(roleName)) {
       return NAV_ITEMS;
     }
-    const items = NAV_ITEMS.filter((item) => hasAnyPermission(permissionSet, item.permissions));
+    const items = NAV_ITEMS.filter(
+      (item) =>
+        !item.hiddenForRoles?.includes(roleName) &&
+        hasAnyPermission(permissionSet, item.permissions)
+    );
     if (roleName === "teacher" || roleName === "volunteer") {
       return items.map((item) =>
         item.url === "/dashboard/programmecards" ? { ...item, title: "My Programs" } : item

@@ -179,7 +179,6 @@ export const mainPermissions = async () => {
         "View Programme",
         "View Notifications",
         "Manage Notification Settings",
-         "Manage Issues",
         "Manage Reservations",
       ],
       Teacher: [

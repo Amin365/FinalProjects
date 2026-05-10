@@ -10,9 +10,10 @@ export function getDesktopModules(user) {
   const roleName = getRoleName(user);
   const permissionSet = getPermissionSet(user?.permissions, user?.role?.permissions);
 
+  const visibleItems = NAV_ITEMS.filter((item) => !item.hiddenForRoles?.includes(roleName));
   const items = isAdminRoleName(roleName)
-    ? NAV_ITEMS
-    : NAV_ITEMS.filter((item) => hasAnyPermission(permissionSet, item.permissions));
+    ? visibleItems
+    : visibleItems.filter((item) => hasAnyPermission(permissionSet, item.permissions));
 
   return items.map((item) => {
     const title =

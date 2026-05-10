@@ -2,6 +2,7 @@ import Attendance from "../models/Attendance.js";
 import Program from "../models/Program.js";
 import Enrollment from "../models/Enrollment.js";
 import User from "../models/user.js";
+import Member from "../models/Members.js";
 import mongoose from "mongoose";
 
 const getRoleName = async (userId) => {
@@ -11,6 +12,17 @@ const getRoleName = async (userId) => {
 };
 
 const isTeacherRole = (roleName = "") => /^(teacher|volunteer)$/.test(roleName);
+
+const firstNonEmpty = (...values) =>
+  values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
+
+const getFormValue = (formData = {}, keys = []) => {
+  for (const key of keys) {
+    const value = formData?.[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  return "";
+};
 
 const ensureProgramAccess = async (userId, programId) => {
   const roleName = await getRoleName(userId);
@@ -44,35 +56,79 @@ const buildStudentList = async (programId) => {
         .filter((id) => mongoose.Types.ObjectId.isValid(id))
     ),
   ];
+  const enrollmentEmails = [
+    ...new Set(
+      enrollments
+        .flatMap((item) => {
+          const formData = item.formData || {};
+          return [
+            getFormValue(formData, ["email", "Email", "learnerEmail", "studentEmail"]),
+            String(item.userId || "").includes("@") ? String(item.userId).trim() : "",
+          ];
+        })
+        .map((email) => String(email || "").trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
 
-  const users = userIds.length
-    ? await User.find({ _id: { $in: userIds } })
+  const userQuery = [
+    userIds.length ? { _id: { $in: userIds } } : null,
+    enrollmentEmails.length ? { email: { $in: enrollmentEmails } } : null,
+  ].filter(Boolean);
+
+  const [users, members] = await Promise.all([
+    userQuery.length
+      ? User.find({ $or: userQuery })
         .select("_id first_name last_name email profile_picture member member_id")
         .populate("member", "first_name middle_name last_name email phone Profile_picture code")
         .lean()
-    : [];
+      : [],
+    enrollmentEmails.length
+      ? Member.find({ email: { $in: enrollmentEmails } })
+          .select("_id first_name middle_name last_name email phone Profile_picture code")
+          .lean()
+      : [],
+  ]);
 
   const userMap = new Map(users.map((user) => [String(user._id), user]));
+  const userEmailMap = new Map(users.map((user) => [String(user.email || "").trim().toLowerCase(), user]));
+  const memberEmailMap = new Map(members.map((member) => [String(member.email || "").trim().toLowerCase(), member]));
 
   return enrollments.map((item) => {
     const formData = item.formData || {};
-    const user = userMap.get(String(item.userId));
-    const member = user?.member && typeof user.member === "object" ? user.member : null;
+    const formEmail = getFormValue(formData, ["email", "Email", "learnerEmail", "studentEmail"]).toLowerCase();
+    const userIdEmail = String(item.userId || "").includes("@") ? String(item.userId).trim().toLowerCase() : "";
+    const lookupEmail = formEmail || userIdEmail;
+    const user = userMap.get(String(item.userId)) || userEmailMap.get(lookupEmail);
+    const member =
+      (user?.member && typeof user.member === "object" ? user.member : null) ||
+      memberEmailMap.get(lookupEmail) ||
+      null;
+    const firstName = firstNonEmpty(
+      user?.first_name,
+      member?.first_name,
+      getFormValue(formData, ["firstName", "first_name", "firstname", "FirstName", "first name"])
+    );
+    const lastName = firstNonEmpty(
+      user?.last_name,
+      member?.last_name,
+      getFormValue(formData, ["lastName", "last_name", "lastname", "LastName", "last name"])
+    );
     const fullName = [
-      user?.first_name || member?.first_name || formData.firstName,
-      user?.last_name || member?.last_name || formData.lastName,
+      firstName,
+      lastName,
     ].filter(Boolean).join(" ").trim();
     const fallbackName =
-      formData.fullName ||
+      getFormValue(formData, ["fullName", "full_name", "name", "FullName", "full name", "learnerName", "studentName"]) ||
       [member?.first_name, member?.middle_name, member?.last_name].filter(Boolean).join(" ").trim();
 
     return {
       id: String(item._id),
       studentId: String(item._id),
       userId: String(item.userId || ""),
-      name: fullName || fallbackName || user?.email || formData.email || "Unknown learner",
-      email: user?.email || member?.email || formData.email || (String(item.userId || "").includes("@") ? String(item.userId) : ""),
-      phone: member?.phone || formData.phone || "",
+      name: fullName || fallbackName || user?.email || member?.email || lookupEmail || `Enrollment ${String(item._id).slice(-6)}`,
+      email: user?.email || member?.email || lookupEmail,
+      phone: member?.phone || getFormValue(formData, ["phone", "Phone", "telephone", "mobile"]) || "",
       profilePicture: user?.profile_picture || member?.Profile_picture || "",
       enrollmentStatus: item.status,
     };
