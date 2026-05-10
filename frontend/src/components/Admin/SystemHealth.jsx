@@ -327,7 +327,7 @@ export default function SystemHealth() {
         </div>
 
         {/* Scheduled Jobs */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
@@ -370,7 +370,7 @@ export default function SystemHealth() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Database Stats */}
         <Card>

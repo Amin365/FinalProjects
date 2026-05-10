@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import api from "@/app/api/apislice";
@@ -220,12 +219,6 @@ const CreateRequestModal = ({ onClose, onSuccess }) => {
 /* ─────────────────────── Review Modal (approve/reject) ─────────────────────── */
 const ReviewModal = ({ request, action, onClose, onSuccess }) => {
   const [reviewNote, setReviewNote] = useState("");
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
-  const [returnDate, setReturnDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + (request?.requestedDays || 7));
-    return d.toISOString().slice(0, 10);
-  });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -235,15 +228,10 @@ const ReviewModal = ({ request, action, onClose, onSuccess }) => {
       if (action === "reject") {
         return api.patch(`/issue-requests/${request._id}/reject`, { reviewNote });
       }
-      if (action === "issue") {
-        return api.patch(`/issue-requests/${request._id}/issue`, { issueDate, returnDate });
-      }
     },
     onSuccess: () => {
       toast.success(
-        action === "approve" ? "Request approved!" :
-        action === "reject"  ? "Request rejected." :
-        "Book issued successfully!"
+        action === "approve" ? "Request approved and book issued!" : "Request rejected."
       );
       onSuccess?.();
       onClose();
@@ -253,9 +241,7 @@ const ReviewModal = ({ request, action, onClose, onSuccess }) => {
     },
   });
 
-  const title = action === "approve" ? "Approve Request" :
-                action === "reject"  ? "Reject Request" :
-                "Issue Book";
+  const title = action === "approve" ? "Approve & Issue Book" : "Reject Request";
 
   const bookTitle = request?.book?.title || "—";
   const memberName = request?.member?.full_name ||
@@ -275,30 +261,22 @@ const ReviewModal = ({ request, action, onClose, onSuccess }) => {
             <p className="mt-1"><span className="text-slate-500">Member:</span> <span className="font-medium text-slate-800 dark:text-white">{memberName}</span></p>
           </div>
 
-          {action === "issue" ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Issue Date</label>
-                <Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Return Date</label>
-                <Input type="date" value={returnDate} min={issueDate} onChange={(e) => setReturnDate(e.target.value)} className="mt-1" />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="text-sm font-semibold text-slate-600 dark:text-slate-200">
-                {action === "approve" ? "Approval Note (optional)" : "Rejection Reason (optional)"}
-              </label>
-              <Input
-                className="mt-1"
-                placeholder="Add a note..."
-                value={reviewNote}
-                onChange={(e) => setReviewNote(e.target.value)}
-              />
-            </div>
-          )}
+          <div>
+            <label className="text-sm font-semibold text-slate-600 dark:text-slate-200">
+              {action === "approve" ? "Approval Note (optional)" : "Rejection Reason (optional)"}
+            </label>
+            <Input
+              className="mt-1"
+              placeholder="Add a note..."
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+            />
+            {action === "approve" && (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Approving will issue the book immediately using the requested borrowing days.
+              </p>
+            )}
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
@@ -308,7 +286,7 @@ const ReviewModal = ({ request, action, onClose, onSuccess }) => {
               onClick={() => mutation.mutate()}
             >
               {mutation.isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
-              {action === "approve" ? "Approve" : action === "reject" ? "Reject" : "Issue Book"}
+              {action === "approve" ? "Approve & Issue" : "Reject"}
             </Button>
           </div>
         </div>
@@ -319,7 +297,6 @@ const ReviewModal = ({ request, action, onClose, onSuccess }) => {
 
 /* ─────────────────────── Main Page ─────────────────────── */
 const RequestBooksPage = () => {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const { user, token } = useSelector((s) => s.auth);
 
@@ -406,7 +383,6 @@ const RequestBooksPage = () => {
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="Requested">Requested</SelectItem>
-            <SelectItem value="Approved">Approved</SelectItem>
             <SelectItem value="Rejected">Rejected</SelectItem>
             <SelectItem value="Issued">Issued</SelectItem>
             <SelectItem value="Cancelled">Cancelled</SelectItem>
@@ -461,7 +437,7 @@ const RequestBooksPage = () => {
                               className="text-emerald-600 hover:text-emerald-700"
                               onClick={() => setReviewTarget({ request: req, action: "approve" })}
                             >
-                              <CheckCircle2 size={14} className="mr-1" /> Approve
+                              <CheckCircle2 size={14} className="mr-1" /> Approve & Issue
                             </Button>
                             <Button
                               size="sm"
@@ -473,16 +449,7 @@ const RequestBooksPage = () => {
                             </Button>
                           </>
                         )}
-                        {canReview && req.status === "Approved" && (
-                          <Button
-                            size="sm"
-                            className="dark:bg-orange-600"
-                            onClick={() => setReviewTarget({ request: req, action: "issue" })}
-                          >
-                            <BookOpen size={14} className="mr-1" /> Issue
-                          </Button>
-                        )}
-                        {["Requested", "Approved"].includes(req.status) && (
+                        {req.status === "Requested" && (
                           <Button
                             size="sm"
                             variant="outline"

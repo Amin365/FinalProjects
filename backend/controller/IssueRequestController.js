@@ -150,7 +150,7 @@ export const getIssueRequests = async (req, res, next) => {
 
 /**
  * PATCH /issue-requests/:id/approve
- * Admin approves a request.
+ * Admin approves a request and immediately issues the book.
  */
 export const approveIssueRequest = async (req, res, next) => {
   try {
@@ -162,7 +162,7 @@ export const approveIssueRequest = async (req, res, next) => {
     }
 
     const request = await IssueRequest.findById(id)
-      .populate("book", "title availableCopies")
+      .populate("book", "title availableCopies status")
       .populate("member", "first_name last_name email")
       .exec();
 
@@ -171,7 +171,38 @@ export const approveIssueRequest = async (req, res, next) => {
       return res.status(409).json({ message: `Request is already ${request.status}` });
     }
 
-    request.status = "Approved";
+    const { allowed, reason } = await checkBorrowingRules(request.member._id);
+    if (!allowed) {
+      return res.status(409).json({ message: `Cannot issue: ${reason}` });
+    }
+
+    const updatedBook = await Book.findOneAndUpdate(
+      { _id: request.book._id, availableCopies: { $gt: 0 } },
+      { $inc: { availableCopies: -1 } },
+      { new: true }
+    ).exec();
+
+    if (!updatedBook) {
+      return res.status(409).json({ message: "No available copies for this book" });
+    }
+
+    updatedBook.status = (updatedBook.availableCopies || 0) <= 0 ? "borrowed" : "available";
+    await updatedBook.save();
+
+    const issueDate = new Date();
+    const returnDate = new Date(issueDate);
+    returnDate.setDate(returnDate.getDate() + Math.min(Math.max(1, Number(request.requestedDays) || 7), MAX_BORROW_DAYS));
+
+    const issue = await Issue.create({
+      book: request.book._id,
+      member: request.member._id,
+      issueDate,
+      returnDate,
+      status: "Issued",
+    });
+
+    request.status = "Issued";
+    request.issueId = issue._id;
     request.reviewedBy = req.user._id;
     request.reviewedAt = new Date();
     if (reviewNote) request.reviewNote = reviewNote;
@@ -182,16 +213,16 @@ export const approveIssueRequest = async (req, res, next) => {
       if (memberUser?._id) {
         await Notification.create({
           user: memberUser._id,
-          title: "Request approved",
-          message: `Your request for "${request.book?.title}" has been approved. Visit the library to collect.`,
+          title: "Book issued",
+          message: `Your request for "${request.book?.title}" was approved and the book has been issued to you. Due on ${returnDate.toLocaleDateString()}.`,
           type: "success",
-          meta: { request: request._id, book: request.book._id, kind: "request-approved" },
+          meta: { request: request._id, issue: issue._id, book: request.book._id, kind: "request-issued" },
         });
       }
     } catch (_) {}
 
     const populated = await populateFields(IssueRequest.findById(request._id)).lean();
-    return res.status(200).json({ data: populated });
+    return res.status(200).json({ data: populated, issueId: issue._id });
   } catch (err) {
     return next(err);
   }

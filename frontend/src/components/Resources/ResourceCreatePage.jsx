@@ -16,8 +16,10 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
+import { useSelector } from "react-redux";
 import api from "@/app/api/apislice";
 import { toast } from "sonner";
+import { getRoleName, isAdminRoleName } from "@/lib/permissions";
 
 const RESOURCE_TYPES = [
   { value: "pdf", label: "PDF", icon: "📄" },
@@ -38,10 +40,10 @@ const ACCESS_LEVELS = [
   { value: "program-only", label: "Program Only", icon: Users, desc: "Program members only" },
 ];
 
-const SectionHeader = ({ icon: Icon, title, subtitle }) => (
+const SectionHeader = ({ icon: IconComponent, title, subtitle }) => (
   <div className="flex items-center gap-3 mb-5">
     <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-500">
-      <Icon size={18} />
+      {React.createElement(IconComponent, { size: 18 })}
     </div>
     <div>
       <h3 className="text-sm font-bold text-slate-800 dark:text-white tracking-wide">{title}</h3>
@@ -76,6 +78,9 @@ const ResourceForm = () => {
   const qc = useQueryClient();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const user = useSelector((state) => state.auth?.user);
+  const roleName = getRoleName(user);
+  const shouldScopePrograms = /^(teacher|volunteer|library staff)$/.test(roleName) && !isAdminRoleName(roleName);
 
   const [dragOver, setDragOver] = useState(false);
   const [currentFileUrl, setCurrentFileUrl] = useState("");
@@ -83,9 +88,11 @@ const ResourceForm = () => {
   const fileInputRef = useRef(null);
 
   const { data: programsData = [], isLoading: isLoadingPrograms } = useQuery({
-    queryKey: ["programs"],
+    queryKey: ["programs", { mine: shouldScopePrograms }],
     queryFn: async () => {
-      const resp = await api.get("/programs", { params: { page: 1, limit: 200 } });
+      const resp = await api.get("/programs", {
+        params: { page: 1, limit: 200, ...(shouldScopePrograms ? { mine: "true" } : {}) },
+      });
       return resp.data?.data ?? [];
     },
     staleTime: 30_000,
@@ -441,7 +448,7 @@ const ResourceForm = () => {
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-6 shadow-sm">
                 <SectionHeader icon={Shield} title="Access Level" subtitle="Who can see this resource" />
                 <div className="flex flex-col gap-2">
-                  {ACCESS_LEVELS.map(({ value, label, icon: Icon, desc }) => {
+                  {ACCESS_LEVELS.map(({ value, label, icon: AccessIcon, desc }) => {
                     const isSelected = watchedAccessLevel === value;
                     return (
                       <label
@@ -460,7 +467,7 @@ const ResourceForm = () => {
                         />
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
                           ${isSelected ? "bg-orange-500 text-white" : "bg-slate-100 dark:bg-gray-800 text-slate-400"}`}>
-                          <Icon size={15} />
+                          {React.createElement(AccessIcon, { size: 15 })}
                         </div>
                         <div>
                           <p className={`text-sm font-semibold ${isSelected ? "text-orange-700 dark:text-orange-300" : "text-slate-700 dark:text-slate-200"}`}>{label}</p>

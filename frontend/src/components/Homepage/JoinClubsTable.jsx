@@ -24,12 +24,12 @@ const formatDate = (dateStr) =>
 const StatusBadge = ({ status }) => (
   <span
     className={cn(
-      "px-2 py-1 rounded-md text-xs font-semibold",
+      "inline-flex w-fit items-center rounded-md px-2 py-0.5 text-xs font-semibold leading-5",
       status === "Approved"
-        ? "text-green-700 dark:bg-green-800 dark:text-green-100"
+        ? "bg-green-50 text-green-700 dark:bg-green-800 dark:text-green-100"
         : status === "Rejected"
-          ? "text-red-700 dark:bg-red-800 dark:text-red-100"
-          : "text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
+          ? "bg-red-50 text-red-700 dark:bg-red-800 dark:text-red-100"
+          : "bg-yellow-50 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
     )}
   >
     {status}
@@ -158,7 +158,7 @@ const JoinClubsTable = () => {
                   <td className="p-4">{request.email}</td>
                   <td className="p-4">{request.phone}</td>
                   <td className="p-4">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col items-start gap-1">
                       <StatusBadge status={request.status} />
                       {request.rejectionReason && (
                         <span className="text-[11px] text-red-500 italic">{request.rejectionReason}</span>
