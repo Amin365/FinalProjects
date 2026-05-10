@@ -11,12 +11,12 @@ import {
 import { NavLink } from "react-router"
 import { Book as BookIcon } from "lucide-react"
 
-export function NavMain({ items = [] }) {
+export function NavMain({ items = [], iconOnly = false }) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-400">
         <BookIcon className="h-4 w-4 text-slate-500 dark:text-gray-300" />
-        <span className="text-base">DPL</span>
+        {!iconOnly ? <span className="text-base">DPL</span> : null}
       </SidebarGroupLabel>
 
       <SidebarMenu className="mt-12 space-y-3  text-base">
@@ -40,7 +40,7 @@ export function NavMain({ items = [] }) {
                 ) : (
                   <BookIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 )}
-                <span className="truncate ">{item.title}</span>
+                {!iconOnly ? <span className="truncate ">{item.title}</span> : null}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>

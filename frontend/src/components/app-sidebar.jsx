@@ -1,22 +1,5 @@
 import * as React from "react";
 import {
-  ActivityIcon,
-  BarChart3,
-  Bell,
-  BookMarked,
-  BookOpen,
-  Bot,
-  ClipboardList,
-  FileChartColumn,
-  LayoutGrid,
-  Megaphone,
-  Settings,
-  Trophy,
-  User,
-  UserPlus2,
-  Users2,
-} from "lucide-react";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -34,32 +17,9 @@ import {
   hasAnyPermission,
   isAdminRoleName,
 } from "@/lib/permissions";
+import { NAV_ITEMS } from "@/lib/dashboardNav";
 
-const NAV_ITEMS = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutGrid, isActive: true },
-  { title: "Users", url: "/dashboard/users", icon: Users2, permissions: ["View Users"] },
-  { title: "Permissions", url: "/dashboard/permissions", icon: Settings, permissions: ["Manage Permissions", "View Role"] },
-  { title: "Books", url: "/dashboard/books", icon: BookOpen, permissions: ["Manage Books"] },
-  { title: "Members", url: "/dashboard/members", icon: Users2, permissions: ["Manage Members"] },
-  { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen, permissions: ["Manage Issues", "Manage Books"] },
-  { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList, permissions: ["Manage Issues"] },
-  { title: "Reservations", url: "/dashboard/reservations", icon: BookMarked, permissions: ["Manage Reservations"] },
-  { title: "Programs Management", url: "/dashboard/programme", icon: FileChartColumn, permissions: ["Manage Programme"] },
-  { title: "Resource Management", url: "/dashboard/resources", icon: Bot, permissions: ["Manage Resource"] },
-  { title: "Teacher Management", url: "/dashboard/join-clubs", icon: ActivityIcon, permissions: ["Manage Teacher"] },
-  { title: "Enrollments", url: "/dashboard/enrollments", icon: User, permissions: ["View Enrollments"] },
-  { title: "Attendance", url: "/dashboard/attendance", icon: ClipboardList, permissions: ["View Attendance"] },
-  { title: "Programs", url: "/dashboard/programmecards", icon: FileChartColumn, permissions: ["View Programme"] },
-  { title: "Resources", url: "/dashboard/studentsresources", icon: Trophy, permissions: ["View Resource"] },
-  { title: "Notifications", url: "/dashboard/notifications", icon: Bell, permissions: ["View Notifications"] },
-  { title: "Notification Settings", url: "/dashboard/notification-settings", icon: Settings, permissions: ["Manage Notification Settings"] },
-  { title: "Announcements", url: "/dashboard/announcements", icon: Megaphone, permissions: ["Manage Announcements"] },
-  { title: "Reporting Center", url: "/dashboard/reporting", icon: BarChart3, permissions: ["View Reports"] },
-  { title: "Audit Log", url: "/dashboard/audit-log", icon: FileChartColumn, permissions: ["View Audit Log"] },
-  { title: "System Health", url: "/dashboard/system-health", icon: ActivityIcon, permissions: ["View System Health"] },
-];
-
-export function AppSidebar(props) {
+export function AppSidebar({ compact = false, ...props }) {
   const { user, token } = useSelector((state) => state.auth);
 
   const { data: profileData } = useQuery({
@@ -108,9 +68,9 @@ export function AppSidebar(props) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader />
       <SidebarContent>
-        <NavMain items={filteredNav} />
+        <NavMain items={filteredNav} iconOnly={compact} />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className={compact ? "hidden" : undefined}>
         <NavUser
           user={{
             name: user?.username || user?.first_name || "User",

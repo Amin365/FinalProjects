@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Save,
@@ -79,6 +79,8 @@ const ResourceForm = () => {
 
   const [dragOver, setDragOver] = useState(false);
   const [currentFileUrl, setCurrentFileUrl] = useState("");
+  const [selectedUploadFile, setSelectedUploadFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const { data: programsData = [], isLoading: isLoadingPrograms } = useQuery({
     queryKey: ["programs"],
@@ -169,33 +171,48 @@ const ResourceForm = () => {
         file: null,
       });
       setCurrentFileUrl(fetchedResource.fileUrl || "");
+      setSelectedUploadFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }, [isEditMode, fetchedResource, reset]);
 
-  const watchedFile = watch("file");
   const watchedType = watch("type");
   const watchedAccessLevel = watch("accessLevel");
   const watchedFileUrl = watch("fileUrl");
-  const selectedFile = watchedFile?.[0] || null;
+  const selectedFile = selectedUploadFile;
   const fileRegistration = register("file");
+
+  const selectUploadFile = (file, files) => {
+    if (!file) return;
+    setSelectedUploadFile(file);
+    if (files) setValue("file", files, { shouldValidate: true, shouldDirty: true });
+    setValue("fileUrl", "", { shouldValidate: true, shouldDirty: true });
+  };
 
   const onDropFile = (e) => {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files?.[0];
     if (!dropped) return;
-    setValue("file", e.dataTransfer.files, { shouldValidate: true });
-    setValue("fileUrl", "", { shouldValidate: true });
+    selectUploadFile(dropped, e.dataTransfer.files);
   };
 
   const onFileInputChange = (e) => {
     fileRegistration.onChange(e);
-    setValue("file", e.target.files, { shouldValidate: true });
-    if (e.target.files?.[0]) setValue("fileUrl", "", { shouldValidate: true });
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    selectUploadFile(picked, e.target.files);
   };
 
   const removeSelectedFile = () => {
-    setValue("file", null, { shouldValidate: true });
+    setSelectedUploadFile(null);
+    setValue("file", null, { shouldValidate: true, shouldDirty: true });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const openFilePicker = () => {
+    if (isProcessing) return;
+    fileInputRef.current?.click();
   };
 
   const onSubmitHandler = async (data) => {
@@ -213,7 +230,7 @@ const ResourceForm = () => {
     appendIfPresent("accessLevel", data.accessLevel);
     appendIfPresent("programId", data.programId);
 
-    const file = data.file?.[0];
+    const file = selectedUploadFile || data.file?.[0];
     const hasFile = Boolean(file);
     const hasUrl = Boolean(data.fileUrl?.trim());
     const hasExistingFileInEdit = Boolean(isEditMode && currentFileUrl);
@@ -333,6 +350,20 @@ const ResourceForm = () => {
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-6 shadow-sm">
                 <SectionHeader icon={FolderOpen} title="File or URL" subtitle="Upload a file or provide a direct link" />
 
+                <input
+                  type="file"
+                  name={fileRegistration.name}
+                  onBlur={fileRegistration.onBlur}
+                  ref={(node) => {
+                    fileRegistration.ref(node);
+                    fileInputRef.current = node;
+                  }}
+                  onChange={onFileInputChange}
+                  disabled={isProcessing}
+                  className="fixed -left-[9999px] top-0 h-px w-px opacity-0"
+                  tabIndex={-1}
+                />
+
                 <div
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
@@ -370,20 +401,14 @@ const ResourceForm = () => {
                       <UploadCloud className="mx-auto mb-3 text-slate-300 dark:text-gray-600" size={32} />
                       <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Drop your file here</p>
                       <p className="text-xs text-slate-400 mt-0.5 mb-3">PDF, DOCX, PPTX, Video, and more</p>
-                      <label
-                        className="relative inline-flex overflow-hidden px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                      <button
+                        type="button"
+                        onClick={openFilePicker}
+                        disabled={isProcessing}
+                        className="inline-flex px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors"
                       >
-                        <input
-                          type="file"
-                          name={fileRegistration.name}
-                          onBlur={fileRegistration.onBlur}
-                          ref={fileRegistration.ref}
-                          onChange={onFileInputChange}
-                          disabled={isProcessing}
-                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                        />
                         Browse File
-                      </label>
+                      </button>
                     </>
                   )}
                 </div>

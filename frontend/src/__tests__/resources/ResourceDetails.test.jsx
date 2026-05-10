@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
 import { renderWithProviders } from "../../test/renderWithProviders";
@@ -76,8 +76,8 @@ describe("ResourceDetails", () => {
     await screen.findByRole("heading", { name: "Welcome Video" });
     await user.click(screen.getByRole("button", { name: /preview/i }));
 
-    const overlay = await screen.findByText("Welcome Video");
-    const video = within(overlay.closest(".fixed")).getByText("video").closest(".fixed").querySelector("video");
+    await screen.findByText("video");
+    const video = document.querySelector(".fixed video");
     expect(video).toBeInTheDocument();
     expect(video).toHaveAttribute("src", "https://cdn.example.com/welcome.mp4");
   });

@@ -206,7 +206,7 @@ export default function AboutPage() {
       {/* 
           TIMELINE
        */}
-      <section className="py-28 px-6 md:px-12 lg:px-20 bg-slate-50 dark:bg-white/[0.02] border-t border-b border-slate-100 dark:border-white/5">
+      <section className="py-28 px-6 md:px-12 lg:px-20  dark:bg-white/[0.02] border-t border-b border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-16">
             {/* sticky heading */}
@@ -403,7 +403,7 @@ export default function AboutPage() {
       {/* 
           OFFERINGS — asymmetric list
        */}
-      <section className="py-28 px-6 md:px-12 lg:px-20 bg-slate-50 dark:bg-white/[0.02] border-b border-slate-100 dark:border-white/5">
+      <section className="py-28 px-6 md:px-12 lg:px-20  dark:bg-white/[0.02] border-b border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-16 items-start">
             <div className="lg:sticky lg:top-28">
