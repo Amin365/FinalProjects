@@ -73,6 +73,35 @@ export const buildEmailHtml = ({
   `;
 };
 
+const getConfiguredSender = () => {
+  const fromName = EMAIL_FROM_NAME || APP_NAME || "No Reply";
+  const fromAddress = String(
+    EMAIL_FROM || (process.env.NODE_ENV === "production" ? "" : "onboarding@resend.dev")
+  ).trim();
+
+  if (!fromAddress) {
+    throw new Error("EMAIL_FROM is required and must be a verified Resend sender address");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromAddress)) {
+    throw new Error(`EMAIL_FROM must be an email address, received "${fromAddress}"`);
+  }
+
+  return {
+    from: `"${fromName}" <${fromAddress}>`,
+    fromAddress,
+    fromDomain: fromAddress.split("@")[1]?.toLowerCase(),
+  };
+};
+
+const explainResendError = (errorMessage, fromDomain) => {
+  const message = errorMessage || "Resend failed to send email";
+  if (/not authorized to send emails from/i.test(message)) {
+    return `${message}. Check that EMAIL_FROM uses a sender/domain verified in the same Resend account as RESEND_API_KEY${fromDomain ? ` (${fromDomain})` : ""}.`;
+  }
+  return message;
+};
+
 /**
  * sendMail utility using Resend
  * Supports both HTML and plain text
@@ -81,12 +110,7 @@ export async function sendMail({ to, subject, text, html }) {
   if (!to) throw new Error("Missing 'to' address");
   if (!RESEND_API_KEY) throw new Error("Missing RESEND_API_KEY");
 
-  const fromName = EMAIL_FROM_NAME || APP_NAME || "No Reply";
-  const fromAddress = EMAIL_FROM || "noreply@jjureadingclub.com";
-  if (process.env.NODE_ENV === "production" && !EMAIL_FROM) {
-    throw new Error("EMAIL_FROM is required in production (must be a verified sender)");
-  }
-  const from = `"${fromName}" <${fromAddress}>`; // Use verified domain
+  const { from, fromAddress, fromDomain } = getConfiguredSender();
 
   // Resend requires HTML; fallback to plain text wrapped in <pre>
   const finalHtml = html || `<pre>${text || ""}</pre>`;
@@ -100,7 +124,14 @@ export async function sendMail({ to, subject, text, html }) {
   });
 
   if (error) {
-    throw new Error(error.message || "Resend failed to send email");
+    console.error("Resend send failed", {
+      to,
+      subject,
+      fromAddress,
+      fromDomain,
+      message: error.message,
+    });
+    throw new Error(explainResendError(error.message, fromDomain));
   }
 
   console.info("✅ Resend accepted email", {

@@ -14,6 +14,7 @@ import RefreshToken from "../models/RefreshToken.js";
 import { signAccessToken, signRefreshToken, hashToken, verifyRefreshToken } from "../utility/tokenUtils.js";
 import { logAuthAction } from "../utility/auditLog.js";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
+import { buildSetupPasswordUrl, createInviteToken } from "../utility/invite.js";
 
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -323,7 +324,7 @@ export const GetProfile = async (req, res, next) => {
  */
 export const validateInviteToken = async (req, res, next) => {
   try {
-    const { token } = req.params;
+    const token = String(req.params.token || "").trim();
 
     if (!token) {
       return res.status(400).json({ message: "Token is required" });
@@ -361,7 +362,8 @@ export const validateInviteToken = async (req, res, next) => {
  */
 export const setupPasswordFromInvite = async (req, res, next) => {
   try {
-    const { token, password } = req.body;
+    const token = String(req.body?.token || "").trim();
+    const { password } = req.body;
 
     if (!token) {
       return res.status(400).json({ message: "Token is required" });
@@ -418,16 +420,14 @@ export const resendInvite = async (req, res, next) => {
     }
 
     // Generate new invite token
-    const inviteToken = crypto.randomBytes(32).toString("hex");
-    const inviteTokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const { inviteToken, inviteTokenExpires } = createInviteToken();
 
     user.inviteToken = inviteToken;
     user.inviteTokenExpires = inviteTokenExpires;
     await user.save({ validateBeforeSave: false });
 
     // Send invite email
-    const appUrl = process.env.APP_URL || "http://localhost:5173";
-    const setupUrl = `${appUrl}/setup-password?token=${inviteToken}`;
+    const setupUrl = buildSetupPasswordUrl(inviteToken);
 
     await sendMail({
       to: user.email,

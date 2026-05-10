@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Bell, Menu, MessageCircle, X } from "lucide-react";
-import { NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { Menu, MessageCircle, X } from "lucide-react";
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 import {
   SidebarInset,
   SidebarProvider,
@@ -14,15 +15,56 @@ import ModeToggle from "../components/ModeTogle";
 import MainHeader from "../components/ProfileSection";
 import NotificationBell from "../components/NotificationBell";
 import { setDesktopLauncher } from "../app/CommonnSlice";
+import api from "../app/api/apislice";
+
+function DesktopChatButton({ onOpenChat }) {
+  const navigate = useNavigate();
+
+  const { data } = useQuery({
+    queryKey: ["chat-unread-count", "desktop-header"],
+    queryFn: async () => {
+      const res = await api.get("/chats/contacts");
+      return res.data;
+    },
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+
+  const contacts = Array.isArray(data?.data) ? data.data : [];
+  const unread = contacts.reduce((sum, contact) => sum + Number(contact?.unread || 0), 0);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onOpenChat?.();
+        navigate("/dashboard/chats");
+      }}
+      className="relative hidden h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-800 sm:flex"
+      aria-label="Open chat"
+      title="Open chat"
+    >
+      <MessageCircle className="h-5 w-5" />
+      {unread > 0 ? (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      ) : null}
+    </button>
+  );
+}
 
 function DesktopTopBar({
   activeModule,
   showLauncher,
   onShowLauncher,
   onCloseDesktop,
+  onOpenChat,
 }) {
   return (
-    <div className="sticky top-0 z-40 flex h-[72px] items-center justify-between bg-slate-900/95 px-4 text-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+    <div className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-slate-200/70 bg-white/90 px-4 text-slate-800 shadow-[0_12px_30px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_12px_30px_rgba(15,23,42,0.24)]">
       <div className="flex min-w-0 items-center gap-3">
         {showLauncher ? (
           <button
@@ -47,7 +89,7 @@ function DesktopTopBar({
         )}
 
         <div className="flex min-w-0 items-center gap-2">
-          <span className="rounded-md bg-slate-950/40 px-3 py-2 text-sm font-bold text-slate-200">
+          <span className="rounded-md bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 shadow-sm dark:bg-slate-950/40 dark:text-slate-200">
             Home
           </span>
           {!showLauncher && activeModule?.name ? (
@@ -58,24 +100,13 @@ function DesktopTopBar({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <ModeToggle />
-        <button
-          type="button"
-          className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-100 transition hover:bg-white/10 sm:flex"
-          aria-label="Messages"
-        >
-          <MessageCircle className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          className="relative hidden h-9 w-9 items-center justify-center rounded-full text-slate-100 transition hover:bg-white/10 sm:flex"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
-        <MainHeader />
+      <div className=" flex items-center gap-3">
+        <ModeToggle className="border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-800" />
+        <DesktopChatButton onOpenChat={onOpenChat} />
+        <NotificationBell triggerClassName="border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:hover:bg-slate-800" />
+        <div className="rounded-full border border-slate-300 bg-white p-0.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
+          <MainHeader />
+        </div>
       </div>
     </div>
   );
@@ -83,8 +114,8 @@ function DesktopTopBar({
 
 function DesktopIconRail({ modules, activeModule, onSelectModule }) {
   return (
-    <aside className="sticky top-[72px] hidden h-[calc(100svh-72px)] w-[68px] shrink-0 overflow-y-auto bg-slate-900/95 py-3 shadow-[12px_0_30px_rgba(15,23,42,0.2)] md:block">
-      <nav className="flex flex-col items-center gap-4">
+    <aside className="sticky top-[72px] h-[calc(100svh-72px)] w-[68px] shrink-0 overflow-visible  py-3 shadow-[12px_0_30px_rgba(15,23,42,0.2)] ">
+      <nav className="flex flex-col items-center gap-4 px-2">
         {modules.map((module) => {
           const Icon = module.icon;
           const active = activeModule?.link === module.link;
@@ -103,7 +134,7 @@ function DesktopIconRail({ modules, activeModule, onSelectModule }) {
               ].join(" ")}
             >
               {Icon ? <Icon className="h-5 w-5" /> : null}
-              <span className="pointer-events-none absolute left-[54px] z-50 hidden whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-xs font-semibold text-white shadow-xl group-hover:block">
+              <span className="pointer-events-none absolute left-[54px] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-xs font-semibold text-white shadow-xl group-hover:block">
                 {module.name}
               </span>
             </NavLink>
@@ -130,12 +161,16 @@ export default function DashboardPage() {
 
   if (desktopLauncher) {
     return (
-      <div className="min-h-svh bg-slate-950 text-slate-100">
+      <div className="min-h-svh  text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <DesktopTopBar
           activeModule={activeModule}
           showLauncher={showDesktopLauncher}
           onShowLauncher={() => setShowDesktopLauncher(true)}
           onCloseDesktop={() => dispatch(setDesktopLauncher(false))}
+          onOpenChat={() => {
+            setActiveModule({ name: "Chat", link: "/dashboard/chats" });
+            setShowDesktopLauncher(false);
+          }}
         />
 
         {showDesktopLauncher ? (
@@ -147,13 +182,13 @@ export default function DashboardPage() {
             onClose={() => setShowDesktopLauncher(false)}
           />
         ) : (
-          <div className="flex min-h-[calc(100svh-72px)] bg-slate-950">
+          <div className="flex min-h-[calc(100svh-72px)]  dark:bg-slate-950">
             <DesktopIconRail
               modules={desktopModules}
               activeModule={activeModule}
               onSelectModule={setActiveModule}
             />
-            <main className="min-w-0 flex-1 overflow-x-hidden bg-slate-950">
+            <main className="min-w-0 flex-1 overflow-x-hidden  dark:bg-slate-950">
               <div className="min-h-[calc(100svh-72px)] p-4 md:p-6">
                 <Outlet />
               </div>

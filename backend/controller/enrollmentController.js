@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendMail } from "./EmailController.js";
 import { welcomeEmailTemplate, joinRejectionTemplate } from "../utility/emailTemplates.js";
+import { buildSetupPasswordUrl, createInviteToken } from "../utility/invite.js";
 
 const getRequestRoleName = (req) => {
   const roleSource = req.user?.role;
@@ -278,8 +279,7 @@ export const approveEnrollment = async (req, res) => {
       });
 
       const securePassword = crypto.randomBytes(32).toString("hex");
-      const inviteToken = crypto.randomBytes(32).toString("hex");
-      const inviteTokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
+      const { inviteToken, inviteTokenExpires } = createInviteToken();
 
       const created = await User.create({
         first_name: member.first_name,
@@ -304,8 +304,7 @@ export const approveEnrollment = async (req, res) => {
       user = created.toObject();
       userCreated = true;
 
-      const appUrl = process.env.APP_URL || "http://localhost:5173";
-      const setupUrl = `${appUrl}/setup-password?token=${inviteToken}`;
+      const setupUrl = buildSetupPasswordUrl(inviteToken);
       const welcomeEmail = welcomeEmailTemplate({
         firstName: member.first_name,
         lastName: member.last_name,

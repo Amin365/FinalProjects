@@ -1,3 +1,5 @@
+import api from "@/app/api/apislice";
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -11,8 +13,8 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Call this after login with token and userId
-export async function enableNotifications(token, userId) {
+// Call this after login with token
+export async function enableNotifications(token) {
   if (!("serviceWorker" in navigator)) return;
 
   const permission = await Notification.requestPermission();
@@ -23,25 +25,20 @@ export async function enableNotifications(token, userId) {
     throw new Error("Missing VITE_VAPID_PUBLIC_KEY. Add the VAPID public key to the frontend environment.");
   }
 
-  await navigator.serviceWorker.register("/sw.js");
+  const registration = await navigator.serviceWorker.register("/sw.js");
   const reg = await navigator.serviceWorker.ready;
+  const activeRegistration = reg || registration;
 
   // Check existing subscription
-  let sub = await reg.pushManager.getSubscription();
+  let sub = await activeRegistration.pushManager.getSubscription();
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
+    sub = await activeRegistration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
   }
 
-  // Send subscription to backend
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(sub)
+  await api.post("/push/subscribe", sub, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }

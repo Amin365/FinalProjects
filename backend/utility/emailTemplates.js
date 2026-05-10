@@ -5,6 +5,7 @@
  */
 
 import { buildEmailHtml } from "../controller/EmailController.js";
+import { INVITE_EXPIRES_HOURS } from "./invite.js";
 
 const APP_NAME = process.env.APP_NAME || "JJU Reading Club";
 const APP_URL = process.env.APP_URL || "https://jjureadingclub.com";
@@ -12,7 +13,7 @@ const APP_URL = process.env.APP_URL || "https://jjureadingclub.com";
 /**
  * Welcome email for new members
  */
-export function welcomeEmailTemplate({ firstName, lastName, memberCode, username, setupUrl, expiresIn = "72 hours" }) {
+export function welcomeEmailTemplate({ firstName, lastName, memberCode, username, setupUrl, expiresIn = `${INVITE_EXPIRES_HOURS} hours` }) {
   const fullName = `${firstName || ""} ${lastName || ""}`.trim() || "Reader";
   const bodyLines = [
     `Welcome to <strong>${APP_NAME}</strong>! We're thrilled to have you as a member of our reading community.`,

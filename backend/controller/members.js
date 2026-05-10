@@ -10,6 +10,7 @@ import MemberNote from "../models/MemberNote.js";
 import { logMemberAction, logUserAction, logJoinRequestAction } from "../utility/auditLog.js";
 import { sendMail, buildEmailHtml } from "./EmailController.js";
 import { joinApprovalTemplate, joinRejectionTemplate, welcomeEmailTemplate } from "../utility/emailTemplates.js";
+import { buildSetupPasswordUrl, createInviteToken } from "../utility/invite.js";
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -129,8 +130,7 @@ export const createMember = async (req, res, next) => {
       const securePassword = crypto.randomBytes(32).toString("hex");
       
       // Generate invite token for password setup
-      const inviteToken = crypto.randomBytes(32).toString("hex");
-      const inviteTokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+      const { inviteToken, inviteTokenExpires } = createInviteToken();
 
       try {
         const newUser = await User.create({
@@ -154,8 +154,7 @@ export const createMember = async (req, res, next) => {
         });
 
         // Send invite email with password setup link
-        const appUrl = process.env.APP_URL || "http://localhost:5173";
-        const setupUrl = `${appUrl}/setup-password?token=${inviteToken}`;
+        const setupUrl = buildSetupPasswordUrl(inviteToken);
 
         try {
           const welcomeEmail = welcomeEmailTemplate({
@@ -860,8 +859,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
 
       update.memberId = member._id;
 
-      const inviteToken = crypto.randomBytes(32).toString("hex");
-      const inviteTokenExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
+      const { inviteToken, inviteTokenExpires } = createInviteToken();
 
       let user = await User.findOne({ email: clubReq.email }).lean();
       if (!user) {
@@ -940,8 +938,7 @@ export const updateJoinClubStatus = async (req, res, next) => {
 
       try {
         if (clubReq.email) {
-          const appUrl = process.env.APP_URL || "http://localhost:5173";
-          const setupUrl = `${appUrl}/setup-password?token=${inviteToken}`;
+          const setupUrl = buildSetupPasswordUrl(inviteToken);
           const approvalEmail = joinApprovalTemplate({
             firstName: createdMember?.first_name || linkedUser?.first_name || clubReq.FullName?.split(/\s+/)[0] || "",
             lastName:

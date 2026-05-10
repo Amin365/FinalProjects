@@ -35,8 +35,8 @@ NotificationRouter.delete("/notifications/read", viewNotifications, deleteAllRea
 NotificationRouter.patch("/notifications/:id/read", viewNotifications, markOneRead);
 NotificationRouter.delete("/notifications/:id", viewNotifications, deleteNotification);
 
-// Push subscription
-NotificationRouter.post("/push/subscribe", viewNotifications, subscribePush);
+// Push subscription: any authenticated user can register their own browser.
+NotificationRouter.post("/push/subscribe", protect, subscribePush);
 
 // Notification preferences
 NotificationRouter.get("/notification-preferences", manageNotificationSettings, getMyPreferences);

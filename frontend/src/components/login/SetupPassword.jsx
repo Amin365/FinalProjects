@@ -3,7 +3,7 @@
  * Allows invited users to set their password
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/app/api/apislice";
@@ -42,7 +42,7 @@ const PasswordRequirement = ({ met, text }) => (
 export default function SetupPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const token = String(searchParams.get("token") || "").trim();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -53,10 +53,10 @@ export default function SetupPassword() {
   const { data: tokenData, isLoading: tokenLoading, error: tokenError } = useQuery({
     queryKey: ["validate-invite", token],
     queryFn: async () => {
-      const res = await api.get(`/auth/validate-invite/${token}`);
+      const res = await api.get(`/auth/validate-invite/${encodeURIComponent(token)}`);
       return res.data;
     },
-    enabled: !!token,
+    enabled: token.length > 0,
     retry: false,
   });
 
@@ -260,9 +260,9 @@ export default function SetupPassword() {
             <Button
               type="submit"
               className="w-full"
-              disabled={!isValid || setupMutation.isLoading}
+              disabled={!isValid || setupMutation.isPending}
             >
-              {setupMutation.isLoading ? (
+              {setupMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Setting Password...

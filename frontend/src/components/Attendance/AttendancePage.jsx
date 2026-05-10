@@ -74,7 +74,8 @@ const ProgramCard = ({ program, selected, onClick, rate }) => (
           {program.title}
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-          <Users size={9} /> {program.capacity ? `${program.capacity} capacity` : "Capacity —"}
+          <Users size={9} /> {Number(program.attendanceLearnerCount || 0)} enrolled
+          {program.capacity ? ` / ${program.capacity} capacity` : ""}
         </p>
       </div>
       {rate !== null && (
@@ -107,6 +108,10 @@ export default function AttendancePage() {
   });
 
   const programs = programsQuery.data || [];
+  const totalProgramStudents = programs.reduce(
+    (sum, program) => sum + Number(program.attendanceLearnerCount || 0),
+    0
+  );
 
   const detailQuery = useQuery({
     queryKey: ["attendance-program-detail", { programId: selected, date }],
@@ -120,7 +125,7 @@ export default function AttendancePage() {
   });
 
   const prog = detailQuery.data?.program || programs.find((p) => String(p._id) === String(selected));
-  const students = detailQuery.data?.students || [];
+  const students = useMemo(() => detailQuery.data?.students || [], [detailQuery.data?.students]);
   const attendance = detailQuery.data?.attendance || null;
 
   useEffect(() => {
@@ -133,6 +138,7 @@ export default function AttendancePage() {
       byStudentId[String(r.studentId)] = r.status || "absent";
     });
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync saved attendance into the editable local grid
     setRecords((prev) => {
       const next = { ...prev };
       next[selected] = { ...(next[selected] || {}) };
@@ -255,18 +261,21 @@ export default function AttendancePage() {
             <div className="flex gap-5 shrink-0">
               {[
                 { icon: BookOpen, value: programs.length,                           label: "Programmes"     },
-                { icon: Users,    value: "—", label: "Total students" },
-              ].map(({ icon: Icon, value, label }) => (
-                <div key={label} className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 flex items-center justify-center">
-                    <Icon size={14} className="text-orange-500" />
+                { icon: Users,    value: totalProgramStudents, label: "Total students" },
+              ].map(({ icon, value, label }) => {
+                const StatIcon = icon;
+                return (
+                  <div key={label} className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/40 flex items-center justify-center">
+                      <StatIcon size={14} className="text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-[18px] font-extrabold text-slate-900 dark:text-white leading-none">{value}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{label}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[18px] font-extrabold text-slate-900 dark:text-white leading-none">{value}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{label}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

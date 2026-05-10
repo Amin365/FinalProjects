@@ -27,7 +27,7 @@ function getNotificationIcon(type) {
   }
 }
 
-export default function NotificationBell() {
+export default function NotificationBell({ triggerClassName = "" }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
@@ -69,7 +69,7 @@ export default function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={(o) => { setOpen(o); if (o) refetch(); }}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className={`relative ${triggerClassName}`}>
           <Bell className="w-5 h-5" />
           {unread > 0 && (
             <Badge className="absolute -top-1 -right-1 px-1 py-0 text-[10px] bg-red-600 text-white">
