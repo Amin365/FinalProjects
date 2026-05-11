@@ -2,7 +2,7 @@ import { NAV_ITEMS } from "@/lib/dashboardNav";
 import {
   getPermissionSet,
   getRoleName,
-  hasAnyPermission,
+  canAccessNavItem,
   isAdminRoleName,
 } from "@/lib/permissions";
 
@@ -13,7 +13,7 @@ export function getDesktopModules(user) {
   const visibleItems = NAV_ITEMS.filter((item) => !item.hiddenForRoles?.includes(roleName));
   const items = isAdminRoleName(roleName)
     ? visibleItems
-    : visibleItems.filter((item) => hasAnyPermission(permissionSet, item.permissions));
+    : visibleItems.filter((item) => canAccessNavItem(item, roleName, permissionSet));
 
   return items.map((item) => {
     const title =

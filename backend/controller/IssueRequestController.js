@@ -14,22 +14,57 @@ const populateFields = (q) =>
     .populate("requestedBy", "first_name last_name username")
     .populate("reviewedBy", "first_name last_name username");
 
+const getRoleName = (user) =>
+  String(user?.role?.role || user?.role?.plural || user?.role || "")
+    .trim()
+    .toLowerCase();
+
+const canManageIssueRequests = (roleName = "") =>
+  roleName.includes("super") ||
+  roleName === "admin" ||
+  roleName.includes("library") ||
+  roleName.includes("moderator");
+
 /**
  * POST /issue-requests
  * Member or admin creates a borrow request.
  */
 export const createIssueRequest = async (req, res, next) => {
   try {
-    const { book, member, requestedDays = 7, note } = req.body;
+    const { book, requestedDays = 7, note } = req.body;
+    let { member } = req.body;
 
-    if (!book || !member) {
-      return res.status(400).json({ message: "book and member are required" });
+    if (!book) {
+      return res.status(400).json({ message: "book is required" });
     }
     if (!mongoose.Types.ObjectId.isValid(book)) {
       return res.status(400).json({ message: "Invalid book id" });
     }
+
+    const currentUser = await User.findById(req.user?._id)
+      .populate("role", "role plural")
+      .select("member role")
+      .lean()
+      .exec();
+
+    if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
+
+    const roleName = getRoleName(currentUser);
+    const canCreateForAnyMember = canManageIssueRequests(roleName);
+
+    if (!member && currentUser.member) {
+      member = currentUser.member;
+    }
+
+    if (!member) {
+      return res.status(400).json({ message: "member is required" });
+    }
     if (!mongoose.Types.ObjectId.isValid(member)) {
       return res.status(400).json({ message: "Invalid member id" });
+    }
+
+    if (!canCreateForAnyMember && String(member) !== String(currentUser.member || "")) {
+      return res.status(403).json({ message: "You can only request books for your own member account" });
     }
 
     const days = Math.min(Math.max(1, parseInt(requestedDays, 10) || 7), MAX_BORROW_DAYS);
@@ -97,7 +132,7 @@ export const createIssueRequest = async (req, res, next) => {
 
 /**
  * GET /issue-requests
- * List requests with role-based scoping (super admin = all, others = own member only).
+ * List requests with role-based scoping (admins/library staff = all, others = own member only).
  */
 export const getIssueRequests = async (req, res, next) => {
   try {
@@ -115,14 +150,14 @@ export const getIssueRequests = async (req, res, next) => {
 
     if (!currentUser) return res.status(401).json({ message: "Unauthorized" });
 
-    const roleName = (currentUser.role?.role || currentUser.role?.plural || "").toLowerCase();
-    const isSuperAdmin = roleName.includes("super");
+    const roleName = getRoleName(currentUser);
+    const canManageRequests = canManageIssueRequests(roleName);
 
     const filter = {};
     if (status) filter.status = status;
     if (book && mongoose.Types.ObjectId.isValid(book)) filter.book = book;
 
-    if (isSuperAdmin) {
+    if (canManageRequests) {
       if (member && mongoose.Types.ObjectId.isValid(member)) filter.member = member;
     } else {
       if (!mongoose.Types.ObjectId.isValid(currentUser.member)) {

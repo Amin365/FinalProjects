@@ -53,6 +53,21 @@ export const hasAnyPermission = (permissionSet, permissions = []) => {
   return normalizedRequired.some((permission) => permissionSet.has(permission));
 };
 
+export const hasAllowedRole = (roleName = "", roles = []) => {
+  const normalizedRole = normalizeAccessValue(roleName);
+  const normalizedRoles = (Array.isArray(roles) ? roles : [roles])
+    .map(normalizeAccessValue)
+    .filter(Boolean);
+
+  return normalizedRoles.includes(normalizedRole);
+};
+
+export const canAccessNavItem = (item, roleName, permissionSet) => {
+  if (hasAllowedRole(roleName, item.hiddenForRoles)) return false;
+  if (hasAllowedRole(roleName, item.allowedRoles)) return true;
+  return hasAnyPermission(permissionSet, item.permissions);
+};
+
 export const hasAllPermissions = (permissionSet, permissions = []) => {
   const required = Array.isArray(permissions) ? permissions : [permissions];
   const normalizedRequired = required.map(getPermissionName).filter(Boolean);

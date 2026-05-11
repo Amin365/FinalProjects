@@ -22,7 +22,7 @@ export const NAV_ITEMS = [
   { title: "Books", url: "/dashboard/books", icon: BookOpen, permissions: ["Manage Books"] },
   { title: "Members", url: "/dashboard/members", icon: Users2, permissions: ["Manage Members"] },
   { title: "Issue Books", url: "/dashboard/issues", icon: BookOpen, permissions: ["Manage Issues", "Manage Books"], hiddenForRoles: ["student", "students"] },
-  { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList, permissions: ["Manage Issues"], hiddenForRoles: ["student", "students"] },
+  { title: "Request Books", url: "/dashboard/issues/request", icon: ClipboardList, permissions: ["Manage Issues"], allowedRoles: ["student", "students"] },
   { title: "Reservations", url: "/dashboard/reservations", icon: BookMarked, permissions: ["Manage Reservations"] },
   { title: "Programs Management", url: "/dashboard/programme", icon: FileChartColumn, permissions: ["Manage Programme"] },
   { title: "Resource Management", url: "/dashboard/resources", icon: Bot, permissions: ["Manage Resource"] },

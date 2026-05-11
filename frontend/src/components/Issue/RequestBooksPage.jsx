@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import api from "@/app/api/apislice";
@@ -42,11 +42,29 @@ const statusClass = (s) => {
   }
 };
 
+const getMemberName = (member) =>
+  member?.full_name ||
+  [member?.first_name, member?.middle_name, member?.last_name].filter(Boolean).join(" ") ||
+  "Member";
+
+const getLinkedMemberId = (user) => {
+  const member = user?.member;
+  if (!member) return null;
+  return typeof member === "object" ? member._id : member;
+};
+
+const getLinkedMemberInfo = (user) => {
+  const member = user?.member;
+  return member && typeof member === "object" ? member : null;
+};
+
 /* ─────────────────────── Create Request Modal ─────────────────────── */
-const CreateRequestModal = ({ onClose, onSuccess }) => {
+const CreateRequestModal = ({ onClose, onSuccess, currentUser, isStudent }) => {
+  const linkedMemberId = getLinkedMemberId(currentUser);
+  const linkedMemberInfo = getLinkedMemberInfo(currentUser);
   const [memberCode, setMemberCode] = useState("");
-  const [memberId, setMemberId] = useState(null);
-  const [memberInfo, setMemberInfo] = useState(null);
+  const [memberId, setMemberId] = useState(isStudent ? linkedMemberId : null);
+  const [memberInfo, setMemberInfo] = useState(isStudent ? linkedMemberInfo : null);
   const [selectedBook, setSelectedBook] = useState("");
   const [requestedDays, setRequestedDays] = useState("7");
   const [note, setNote] = useState("");
@@ -62,6 +80,12 @@ const CreateRequestModal = ({ onClose, onSuccess }) => {
   });
 
   const books = Array.isArray(booksData) ? booksData : [];
+
+  useEffect(() => {
+    if (!isStudent) return;
+    setMemberId(linkedMemberId);
+    setMemberInfo(linkedMemberInfo);
+  }, [isStudent, linkedMemberId, linkedMemberInfo]);
 
   const lookupMember = async () => {
     if (!memberCode.trim()) return;
@@ -110,14 +134,34 @@ const CreateRequestModal = ({ onClose, onSuccess }) => {
           </div>
 
           {/* Member Lookup */}
-          {!memberInfo ? (
+          {isStudent ? (
+            <div className="rounded-xl border border-slate-200 dark:border-gray-700 p-3 bg-slate-50 dark:bg-gray-800 text-sm">
+              {memberId ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Requesting as
+                  </p>
+                  <p className="font-semibold text-slate-800 dark:text-white">
+                    {getMemberName(memberInfo)}
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs">
+                    {memberInfo?.code || currentUser?.member_id || ""}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-red-600 dark:text-red-300">
+                  Your account is not linked to a member profile. Please contact the library staff.
+                </p>
+              )}
+            </div>
+          ) : !memberInfo ? (
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-600 dark:text-slate-200">
                 Enter Member ID
               </label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g. MBR123456AB"
+                  placeholder="e.g. MBR124"
                   value={memberCode}
                   onChange={(e) => setMemberCode(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && lookupMember()}
@@ -132,7 +176,7 @@ const CreateRequestModal = ({ onClose, onSuccess }) => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-slate-800 dark:text-white">
-                    {memberInfo.full_name || [memberInfo.first_name, memberInfo.last_name].filter(Boolean).join(" ")}
+                    {getMemberName(memberInfo)}
                   </p>
                   <p className="text-slate-500 dark:text-slate-400 text-xs">{memberInfo.code}</p>
                 </div>
@@ -321,7 +365,9 @@ const RequestBooksPage = () => {
 
   const isAdmin = roleName.includes("super") || roleName.includes("admin");
   const isModerator = roleName.includes("moderator");
-  const canReview = isAdmin || isModerator;
+  const isLibraryStaff = roleName.includes("library");
+  const isStudent = roleName === "student" || roleName === "students";
+  const canReview = isAdmin || isModerator || isLibraryStaff;
 
   const limit = 15;
 
@@ -517,6 +563,8 @@ const RequestBooksPage = () => {
       {/* Modals */}
       {showCreateModal && (
         <CreateRequestModal
+          currentUser={profileData?.user || user}
+          isStudent={isStudent}
           onClose={() => setShowCreateModal(false)}
           onSuccess={refreshAll}
         />

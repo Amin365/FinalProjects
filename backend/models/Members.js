@@ -4,6 +4,52 @@ const { Schema, model, Types } = mongoose
 
 // simple email validator
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const memberCodeRegex = /^MBR\d{3,}$/i
+const minMemberCodeNumber = 124
+
+const normalizeMemberCode = (code) => String(code || '').trim().toUpperCase()
+
+const isReadableMemberCode = (code) => {
+  const normalized = normalizeMemberCode(code)
+  if (!memberCodeRegex.test(normalized)) return false
+  const number = Number(normalized.replace(/^MBR/i, ''))
+  return Number.isFinite(number) && number >= minMemberCodeNumber
+}
+
+const buildMemberCode = (number) => `MBR${String(number).padStart(3, '0')}`
+
+async function getNextMemberCode(MemberModel, reservedCodes = new Set()) {
+  const existing = await MemberModel.find({ code: { $regex: /^MBR\d+$/i } })
+    .select('code')
+    .lean()
+    .exec()
+
+  let highest = minMemberCodeNumber - 1
+  for (const item of existing) {
+    const normalized = normalizeMemberCode(item.code)
+    if (!memberCodeRegex.test(normalized)) continue
+    const number = Number(normalized.replace(/^MBR/i, ''))
+    if (Number.isFinite(number)) highest = Math.max(highest, number)
+  }
+
+  let next = Math.max(highest + 1, minMemberCodeNumber)
+  let code = buildMemberCode(next)
+  while (reservedCodes.has(code)) {
+    next += 1
+    code = buildMemberCode(next)
+  }
+  reservedCodes.add(code)
+  return code
+}
+
+function trimMemberFields(doc) {
+  if (!doc) return
+  if (typeof doc.first_name === 'string') doc.first_name = doc.first_name.trim()
+  if (typeof doc.middle_name === 'string') doc.middle_name = doc.middle_name.trim()
+  if (typeof doc.last_name === 'string') doc.last_name = doc.last_name.trim()
+  if (typeof doc.email === 'string') doc.email = doc.email.trim().toLowerCase()
+  if (typeof doc.code === 'string') doc.code = normalizeMemberCode(doc.code)
+}
 
 const MemberSchema = new Schema(
   {
@@ -31,12 +77,6 @@ const MemberSchema = new Schema(
       required: true,
       trim: true,
       unique: true,
-      default: function () {
-       
-        const t = Date.now().toString()
-        const rnd = Math.random().toString(36).slice(2, 4).toUpperCase()
-        return `MBR${t.slice(-6)}${rnd}`
-      },
     },
 
     phone: {
@@ -138,18 +178,28 @@ MemberSchema.virtual('full_name').get(function () {
 })
 
 
-MemberSchema.pre('validate', function () {
-  if (!this.code) {
-    const t = Date.now().toString()
-    
-    this.code = `MBR${t.slice(-2)}`
+MemberSchema.pre('validate', async function () {
+  trimMemberFields(this)
+  if (!isReadableMemberCode(this.code)) {
+    this.code = await getNextMemberCode(this.constructor)
   }
-  if (typeof this.first_name === 'string') this.first_name = this.first_name.trim()
-  if (typeof this.middle_name === 'string') this.middle_name = this.middle_name.trim()
-  if (typeof this.last_name === 'string') this.last_name = this.last_name.trim()
-  if (typeof this.code === 'string') this.code = this.code.trim()
-  if (typeof this.email === 'string') this.email = this.email.trim().toLowerCase()
- 
+})
+
+MemberSchema.pre('insertMany', async function (next, docs) {
+  try {
+    const reservedCodes = new Set()
+    for (const doc of docs || []) {
+      trimMemberFields(doc)
+      if (isReadableMemberCode(doc.code)) {
+        reservedCodes.add(normalizeMemberCode(doc.code))
+      } else {
+        doc.code = await getNextMemberCode(this, reservedCodes)
+      }
+    }
+    next()
+  } catch (err) {
+    next(err)
+  }
 })
 
 
