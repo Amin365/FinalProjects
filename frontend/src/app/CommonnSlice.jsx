@@ -5,7 +5,7 @@ const initialState = {
     permissions: {
         ...moderator,
     },
-      desktopLauncher: true,
+      desktopLauncher: false,
 };
 
 const CommonnSlice = createSlice({
